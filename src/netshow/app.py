@@ -50,22 +50,34 @@ class ConnectionDetailScreen(Screen):
 
         with ScrollableContainer():
             yield Static(
-                f"Connection Details: {self.connection_data['friendly']}", id="detail_title"
+                f"Connection Details: {self.connection_data['friendly']}",
+                id="detail_title",
             )
 
             with Container(id="connection_details"):
-                yield Static(f"PID: {self.connection_data['pid']}", classes="detail_item")
-                yield Static(f"Process: {self.connection_data['proc']}", classes="detail_item")
                 yield Static(
-                    f"Friendly Name: {self.connection_data['friendly']}", classes="detail_item"
+                    f"PID: {self.connection_data['pid']}", classes="detail_item"
                 )
                 yield Static(
-                    f"Local Address: {self.connection_data['laddr']}", classes="detail_item", markup=False
+                    f"Process: {self.connection_data['proc']}", classes="detail_item"
                 )
                 yield Static(
-                    f"Remote Address: {self.connection_data['raddr']}", classes="detail_item", markup=False
+                    f"Friendly Name: {self.connection_data['friendly']}",
+                    classes="detail_item",
                 )
-                yield Static(f"Status: {self.connection_data['status']}", classes="detail_item")
+                yield Static(
+                    f"Local Address: {self.connection_data['laddr']}",
+                    classes="detail_item",
+                    markup=False,
+                )
+                yield Static(
+                    f"Remote Address: {self.connection_data['raddr']}",
+                    classes="detail_item",
+                    markup=False,
+                )
+                yield Static(
+                    f"Status: {self.connection_data['status']}", classes="detail_item"
+                )
 
             # Show additional process info if available
             if self.process_info:
@@ -73,17 +85,20 @@ class ConnectionDetailScreen(Screen):
 
                 with Container(id="process_info"):
                     yield Static(
-                        f"Executable: {self.process_info.get('exe', 'N/A')}", classes="detail_item"
+                        f"Executable: {self.process_info.get('exe', 'N/A')}",
+                        classes="detail_item",
                     )
                     yield Static(
                         f"Command Line: {self.process_info.get('cmd', 'N/A')}",
                         classes="detail_item",
                     )
                     yield Static(
-                        f"Status: {self.process_info.get('status', 'N/A')}", classes="detail_item"
+                        f"Status: {self.process_info.get('status', 'N/A')}",
+                        classes="detail_item",
                     )
                     yield Static(
-                        f"User: {self.process_info.get('username', 'N/A')}", classes="detail_item"
+                        f"User: {self.process_info.get('username', 'N/A')}",
+                        classes="detail_item",
                     )
                     yield Static(
                         f"Working Directory: {self.process_info.get('cwd', 'N/A')}",
@@ -103,7 +118,9 @@ class ConnectionDetailScreen(Screen):
                     # Network connections from this process
                     if self.process_info.get("connections"):
                         conn_count = len(self.process_info.get("connections", []))
-                        yield Static(f"Active Connections: {conn_count}", classes="detail_item")
+                        yield Static(
+                            f"Active Connections: {conn_count}", classes="detail_item"
+                        )
 
             yield Button("Back to Connections", id="back_button")
 
@@ -134,7 +151,9 @@ class NetTopApp(App):
 
     def on_mount(self) -> None:
         table = self.query_one("#connections_table", DataTable)
-        table.add_columns("PID", "Service", "Process", "Local Address", "Remote Address", "Status")
+        table.add_columns(
+            "PID", "Service", "Process", "Local Address", "Remote Address", "Status"
+        )
 
         # Enable cursor to allow row selection
         table.cursor_type = "row"
@@ -166,7 +185,9 @@ class NetTopApp(App):
             using_root = False
 
         for c in conns:
-            table.add_row(c["pid"], c["friendly"], c["proc"], c["laddr"], c["raddr"], c["status"])
+            table.add_row(
+                c["pid"], c["friendly"], c["proc"], c["laddr"], c["raddr"], c["status"]
+            )
 
         # Restore scroll & cursor
         try:

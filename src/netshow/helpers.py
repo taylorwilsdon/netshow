@@ -65,8 +65,16 @@ def get_psutil_conns():
                 "pid": str(pid) if pid else "-",
                 "proc": proc_name,
                 "friendly": get_friendly_name(proc_name, pid or 0, cmdline),
-                "laddr": f"[{conn.laddr.ip}]:{conn.laddr.port}" if conn.laddr and ':' in conn.laddr.ip else f"{conn.laddr.ip}:{conn.laddr.port}" if conn.laddr else "",
-                "raddr": f"[{conn.raddr.ip}]:{conn.raddr.port}" if conn.raddr and ':' in conn.raddr.ip else f"{conn.raddr.ip}:{conn.raddr.port}" if conn.raddr else "",
+                "laddr": (
+                    f"[{conn.laddr.ip}]:{conn.laddr.port}"
+                    if conn.laddr and ":" in conn.laddr.ip
+                    else f"{conn.laddr.ip}:{conn.laddr.port}" if conn.laddr else ""
+                ),
+                "raddr": (
+                    f"[{conn.raddr.ip}]:{conn.raddr.port}"
+                    if conn.raddr and ":" in conn.raddr.ip
+                    else f"{conn.raddr.ip}:{conn.raddr.port}" if conn.raddr else ""
+                ),
                 "status": conn.status,
             }
         )
