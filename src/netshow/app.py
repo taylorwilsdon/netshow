@@ -249,7 +249,7 @@ class NetTopApp(App):
 
                 # Get the row data at cursor position and use it directly
                 row_data = table.get_row_at(table.cursor_row)
-                selected_data = self._get_selected_connection_data(row_data)
+                selected_data = self._get_selected_connection_data(tuple(row_data))
                 await self.push_screen(ConnectionDetailScreen(selected_data))
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
@@ -265,7 +265,7 @@ class NetTopApp(App):
         # Get the selected row's data
         table = self.query_one("#connections_table", DataTable)
         row_data = table.get_row(event.row_key)
-        selected_data = self._get_selected_connection_data(row_data)
+        selected_data = self._get_selected_connection_data(tuple(row_data))
 
         # Push the detail screen
         await self.push_screen(ConnectionDetailScreen(selected_data))
