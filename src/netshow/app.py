@@ -1,4 +1,5 @@
 import os
+from typing import TypedDict
 
 import psutil
 from textual import events
@@ -11,38 +12,55 @@ from textual.widgets import Button, DataTable, Footer, Header, Static
 from .helpers import get_lsof_conns, get_psutil_conns
 from .styles import CSS
 
+# Constants
+REFRESH_INTERVAL = 3.0  # seconds
+CONNECTION_COLUMNS = ["pid", "friendly", "proc", "laddr", "raddr", "status"]
+
+
+class ConnectionData(TypedDict):
+    """Type definition for connection data."""
+    pid: str
+    friendly: str
+    proc: str
+    laddr: str
+    raddr: str
+    status: str
+
 
 class ConnectionDetailScreen(Screen):
     """Screen for displaying detailed information about a selected connection."""
 
     BINDINGS = [("escape", "app.pop_screen", "Back to connections")]
 
-    def __init__(self, connection_data: dict):
+    def __init__(self, connection_data: ConnectionData):
         super().__init__()
         self.connection_data = connection_data
-        self.process_info = {}
+        self.process_info = self._get_process_info(connection_data["pid"])
 
-        # Try to get additional process info if PID is available
+    def _get_process_info(self, pid_str: str) -> dict:
+        """Get additional process information if PID is available."""
+        if pid_str == "-":
+            return {}
+
         try:
-            if connection_data["pid"] != "-":
-                pid = int(connection_data["pid"])
-                proc = psutil.Process(pid)
-                self.process_info = {
-                    "name": proc.name(),
-                    "exe": proc.exe(),
-                    "cmd": " ".join(proc.cmdline()),
-                    "create_time": proc.create_time(),
-                    "status": proc.status(),
-                    "username": proc.username(),
-                    "cwd": proc.cwd(),
-                    "num_threads": proc.num_threads(),
-                    "cpu_percent": proc.cpu_percent(interval=0.1),
-                    "memory_percent": proc.memory_percent(),
-                    "open_files": proc.open_files(),
-                    "connections": proc.connections(),
-                }
+            pid = int(pid_str)
+            proc = psutil.Process(pid)
+            return {
+                "name": proc.name(),
+                "exe": proc.exe(),
+                "cmd": " ".join(proc.cmdline()),
+                "create_time": proc.create_time(),
+                "status": proc.status(),
+                "username": proc.username(),
+                "cwd": proc.cwd(),
+                "num_threads": proc.num_threads(),
+                "cpu_percent": proc.cpu_percent(interval=0.1),
+                "memory_percent": proc.memory_percent(),
+                "open_files": proc.open_files(),
+                "connections": proc.connections(),
+            }
         except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError):
-            pass
+            return {}
 
     def compose(self) -> ComposeResult:
         """Compose the detail screen layout."""
@@ -112,13 +130,13 @@ class ConnectionDetailScreen(Screen):
                         f"CPU Usage: {self.process_info.get('cpu_percent', 'N/A')}%",
                         classes="detail_item",
                     )
-                    memory_val: float = float(self.process_info.get("memory_percent", 0.0))  # type: ignore[arg-type]
-                    memory_pct = round(memory_val, 2)
-                    yield Static(f"Memory Usage: {memory_pct}%", classes="detail_item")
+                    memory_percent = self.process_info.get("memory_percent", 0.0)
+                    memory_display = f"{memory_percent:.2f}%" if isinstance(memory_percent, (int, float)) else "N/A"
+                    yield Static(f"Memory Usage: {memory_display}", classes="detail_item")
 
                     # Network connections from this process
-                    if self.process_info.get("connections"):
-                        connections = self.process_info.get("connections", [])
+                    connections = self.process_info.get("connections", [])
+                    if connections:
                         conn_count = len(connections) if isinstance(connections, list) else 0
                         yield Static(
                             f"Active Connections: {conn_count}", classes="detail_item"
@@ -161,18 +179,15 @@ class NetTopApp(App):
         table.cursor_type = "row"
         table.can_focus = True
 
-        # Refresh every 3 seconds (was 1s)
-        self.timer: Timer = self.set_interval(3.0, self.refresh_connections)
+        # Refresh at regular intervals
+        self.timer: Timer = self.set_interval(REFRESH_INTERVAL, self.refresh_connections)
         self.refresh_connections()
 
     def refresh_connections(self) -> None:
         table = self.query_one("#connections_table", DataTable)
 
         # Capture current scroll offset & cursor row
-        try:
-            row_offset, col_offset = table.scroll_offset
-        except AttributeError:
-            row_offset, col_offset = 0, 0
+        row_offset, col_offset = getattr(table, "scroll_offset", (0, 0))
         cursor_row = getattr(table, "cursor_row", 0)
 
         table.clear()
@@ -192,15 +207,24 @@ class NetTopApp(App):
             )
 
         # Restore scroll & cursor
-        try:
+        if hasattr(table, "scroll_to"):
             table.scroll_to(row_offset, col_offset)
-            if cursor_row < table.row_count:
-                table.cursor_coordinate = (cursor_row, 0)  # type: ignore
-        except Exception:
-            pass
+        if cursor_row < table.row_count and hasattr(table, "cursor_coordinate"):
+            table.cursor_coordinate = (cursor_row, 0)  # type: ignore
 
         source = "psutil (root)" if using_root else "lsof"
         status_bar.update(f"Connections: {len(conns)} | Source: {source}")
+
+    def _get_selected_connection_data(self, row_data: tuple) -> ConnectionData:
+        """Convert row data tuple to ConnectionData dict."""
+        return ConnectionData(
+            pid=row_data[0],
+            friendly=row_data[1],
+            proc=row_data[2],
+            laddr=row_data[3],
+            raddr=row_data[4],
+            status=row_data[5],
+        )
 
     async def on_key(self, event: events.Key) -> None:
         if event.key == "q":
@@ -209,9 +233,13 @@ class NetTopApp(App):
             # When Enter is pressed on a highlighted row
             table = self.query_one("#connections_table", DataTable)
             if table.cursor_row is not None and table.cursor_row < table.row_count:
-                # Get the row key at cursor position
-                row_key = table.get_row_at(table.cursor_row)[0]
-                await self.show_connection_details(row_key)
+                # Pause refreshing while viewing details
+                self.timer.pause()
+
+                # Get the row data at cursor position and use it directly
+                row_data = table.get_row_at(table.cursor_row)
+                selected_data = self._get_selected_connection_data(row_data)
+                await self.push_screen(ConnectionDetailScreen(selected_data))
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         """Handle row highlighting in the DataTable."""
@@ -220,24 +248,17 @@ class NetTopApp(App):
 
     async def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle row selection in the DataTable."""
-        await self.show_connection_details(str(event.row_key))
-
-    async def show_connection_details(self, row_key: str) -> None:
-        """Show connection details for the selected row."""
         # Pause refreshing while viewing details
         self.timer.pause()
 
         # Get the selected row's data
         table = self.query_one("#connections_table", DataTable)
-        selected_data = {}
-
-        # Extract all data from the table row
-        row_data = table.get_row(row_key)
-        columns = ["pid", "friendly", "proc", "laddr", "raddr", "status"]
-        selected_data = dict(zip(columns, row_data))
+        row_data = table.get_row(event.row_key)
+        selected_data = self._get_selected_connection_data(row_data)
 
         # Push the detail screen
         await self.push_screen(ConnectionDetailScreen(selected_data))
+
 
     async def on_screen_resume(self) -> None:
         """Called when this screen is resumed (after popping another screen)."""
