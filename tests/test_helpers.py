@@ -1,6 +1,5 @@
 """Tests for helper functions."""
 
-import pytest
 from netshow.helpers import get_friendly_name
 
 
