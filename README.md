@@ -1,6 +1,8 @@
 # NetShow
 
-A real-time network connection monitor with friendly service names built with Textual.
+A real-time network connection monitor with friendly service names built with Textual. Think of it like a much more useful and far less chaotic visually nettop combined with iotop and lsof. It will hold your place as data repaints, and you can click into an entry to view everything about the process - path, pid, friendly name, local and remote addresses, service status, working directory, cpu usage, threads, memory usage and active connections!
+
+<img width="638" alt="image" src="https://github.com/user-attachments/assets/cdb035cb-415a-4e21-a6a7-181ffe709c1b" />
 
 ## Features
 
