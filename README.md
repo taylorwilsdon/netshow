@@ -1,84 +1,121 @@
-# NetShow
+<h1 align="center">🚦 NetShow</h1>
+<p align="center"><em>Friendly, process-aware network monitoring for your terminal</em></p>
 
-A real-time network connection monitor with friendly service names built with Textual. Think of it like a much more useful and far less chaotic visually nettop combined with iotop and lsof. It will hold your place as data repaints, and you can click into an entry to view everything about the process - path, pid, friendly name, local and remote addresses, service status, working directory, cpu usage, threads, memory usage and active connections!
+<p align="center">
+  <!-- Badges -->
+  <img src="https://img.shields.io/pypi/pyversions/netshow?logo=python" alt="Python versions">
+  <img src="https://img.shields.io/github/license/taylorwilsdon/netshow" alt="License">
+  <img src="https://img.shields.io/github/actions/workflow/status/taylorwilsdon/netshow/tests.yml?label=tests&logo=github" alt="Build status">
+  <img src="https://img.shields.io/badge/code%20style-ruff-black?logo=ruff" alt="Code style: ruff">
+</p>
 
-<img width="638" alt="image" src="https://github.com/user-attachments/assets/cdb035cb-415a-4e21-a6a7-181ffe709c1b" />
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/cdb035cb-415a-4e21-a6a7-181ffe709c1b" alt="NetShow demo" width="500">
+</p>
 
-## Features
+---
 
-- Real-time monitoring of TCP network connections
-- Friendly service names for common applications (Docker, Plex, VS Code, etc.)
-- Detailed connection information with process details
-- Modern terminal UI with intuitive navigation
-- Support for both root (psutil) and non-root (lsof) operation
+<details>
+<summary><strong>Table&nbsp;of&nbsp;Contents</strong></summary>
 
-## Installation
+- [Features](#features)
+- [Quickstart](#quickstart)
+- [Usage](#usage)
+- [Keybindings](#keybindings)
+- [Development](#development)
+- [Requirements](#requirements)
+- [Contributing](#contributing)
+- [License](#license)
+</details>
 
-Install using uv (recommended):
+---
+
+## ✨ Features
+
+| Capability | Details |
+|------------|---------|
+| **Live TCP monitor** | Refreshes every 3 s (configurable) while preserving scroll position |
+| **Human-friendly service names** | Shows *Docker*, *Plex*, *VS Code*, etc. instead of cryptic binaries |
+| **Deep process drill-down** | Path, PID, cmdline, cwd, threads, CPU %, memory %, open files, active connections |
+| **Clickable / keyboard navigation** | Press `↵` or click a row for a dedicated detail screen; refresh pauses automatically |
+| **Runs privileged <br>or unprivileged** | Uses `psutil` (root) for full fidelity, falls back to `lsof` if run as a regular user |
+| **Modern Textual UI** | Smooth scrolling, dark theme, status bar with connection count & data source |
+| **Zero-pain install** | Powered by [`uv`](https://github.com/astral-sh/uv) for lightning-fast dependency resolution |
+
+---
+
+## 🚀 Quickstart
 
 ```bash
-uv pip install -r pyproject.toml
-```
+# Install (recommended)
+uv pip install netshow
 
-Or install for development with extra dependencies:
-
-```bash
-uv pip install -r pyproject.toml --extra dev
-```
-
-## Usage
-
-Run the application:
-
-```bash
+# Run
 netshow
-```
+````
 
-### Navigation
+> **Tip:** Without root/sudo, NetShow silently switches to `lsof` and still gives you most connections.
 
-- **Arrow keys**: Navigate through connections
-- **Enter**: View detailed connection information
-- **Escape**: Return from detail view
-- **q**: Quit the application
+---
 
-## Development
-
-This project uses modern Python packaging standards with uv for fast dependency management.
-
-### Setup
+## 🛠️ Usage
 
 ```bash
-# Clone and install
-git clone <repository-url>
+netshow [--interval 1.0] [--no-colors]
+```
+
+| Option             | Description          | Default |
+| ------------------ | -------------------- | ------- |
+| `--interval <sec>` | Refresh rate (float) | `3.0`   |
+| `--no-colors`      | Disable ANSI colors  | Off     |
+
+### Keybindings
+
+| Key / Mouse | Action           |
+| ----------- | ---------------- |
+| ↑ / ↓       | Move cursor      |
+| ↵ / Click   | Open detail view |
+| Esc / ←     | Back to list     |
+| **q**       | Quit NetShow     |
+
+---
+
+## 👩‍💻 Development
+
+```bash
+git clone https://github.com/your-org/netshow.git
 cd netshow
 uv pip install -r pyproject.toml --extra dev
 ```
 
-### Running Tests
+### Quality Gates
 
 ```bash
-pytest
+pytest            # tests
+ruff format .     # auto-format
+ruff check .      # lint
+mypy src/         # type check
 ```
 
-### Code Quality
+---
 
-```bash
-# Format code
-ruff format .
+## 📋 Requirements
 
-# Lint code
-ruff check .
+* Python **≥ 3.9**
+* macOS or Linux
+* `lsof` (usually pre-installed)
 
-# Type checking
-mypy src/
+---
+
+## 🤝 Contributing
+
+Pull requests and ⭐ stars are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+---
+
+## 📜 License
+
+MIT – see [`LICENSE`](LICENSE) for full text.
+
 ```
-
-## Requirements
-
-- Python 3.9+
-- Unix-like system (macOS, Linux)
-- `lsof` command (usually pre-installed)
-
-## License
-
-MIT
+```
