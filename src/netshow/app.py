@@ -19,6 +19,7 @@ CONNECTION_COLUMNS = ["pid", "friendly", "proc", "laddr", "raddr", "status"]
 
 class ConnectionData(TypedDict):
     """Type definition for connection data."""
+
     pid: str
     friendly: str
     proc: str
@@ -131,13 +132,21 @@ class ConnectionDetailScreen(Screen):
                         classes="detail_item",
                     )
                     memory_percent = self.process_info.get("memory_percent", 0.0)
-                    memory_display = f"{memory_percent:.2f}%" if isinstance(memory_percent, (int, float)) else "N/A"
-                    yield Static(f"Memory Usage: {memory_display}", classes="detail_item")
+                    memory_display = (
+                        f"{memory_percent:.2f}%"
+                        if isinstance(memory_percent, (int, float))
+                        else "N/A"
+                    )
+                    yield Static(
+                        f"Memory Usage: {memory_display}", classes="detail_item"
+                    )
 
                     # Network connections from this process
                     connections = self.process_info.get("connections", [])
                     if connections:
-                        conn_count = len(connections) if isinstance(connections, list) else 0
+                        conn_count = (
+                            len(connections) if isinstance(connections, list) else 0
+                        )
                         yield Static(
                             f"Active Connections: {conn_count}", classes="detail_item"
                         )
@@ -180,7 +189,9 @@ class NetTopApp(App):
         table.can_focus = True
 
         # Refresh at regular intervals
-        self.timer: Timer = self.set_interval(REFRESH_INTERVAL, self.refresh_connections)
+        self.timer: Timer = self.set_interval(
+            REFRESH_INTERVAL, self.refresh_connections
+        )
         self.refresh_connections()
 
     def refresh_connections(self) -> None:
@@ -258,7 +269,6 @@ class NetTopApp(App):
 
         # Push the detail screen
         await self.push_screen(ConnectionDetailScreen(selected_data))
-
 
     async def on_screen_resume(self) -> None:
         """Called when this screen is resumed (after popping another screen)."""
