@@ -3,6 +3,7 @@
 import re
 import subprocess
 from functools import lru_cache
+from typing import Optional
 
 import psutil
 
@@ -19,7 +20,7 @@ PLEX_RE = re.compile(r"plex", re.I)
 
 
 @lru_cache(maxsize=1)
-def _docker_container_lookup():
+def _docker_container_lookup() -> dict[str, str]:
     """Look up Docker container IDs and names."""
     try:
         out = subprocess.check_output(
@@ -32,7 +33,7 @@ def _docker_container_lookup():
     return dict(line.split(maxsplit=1) for line in out.splitlines())
 
 
-def get_friendly_name(proc_name: str, pid: int, cmdline: str | None) -> str:
+def get_friendly_name(proc_name: str, pid: int, cmdline: Optional[str]) -> str:
     """Get a friendly name for a process."""
     if proc_name in STATIC_MAP:
         return STATIC_MAP[proc_name]
@@ -49,7 +50,7 @@ def get_friendly_name(proc_name: str, pid: int, cmdline: str | None) -> str:
 
 
 # Connection gathering helpers
-def get_psutil_conns():
+def get_psutil_conns() -> list[dict[str, str]]:
     """Get network connections using psutil."""
     conns = []
     for conn in psutil.net_connections(kind="tcp"):
@@ -81,7 +82,7 @@ def get_psutil_conns():
     return conns
 
 
-def get_lsof_conns():
+def get_lsof_conns() -> list[dict[str, str]]:
     """Get network connections using lsof."""
     try:
         output = subprocess.check_output(

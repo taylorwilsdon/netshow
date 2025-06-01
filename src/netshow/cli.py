@@ -5,7 +5,7 @@ import sys
 from .app import NetTopApp
 
 
-def main():
+def main() -> None:
     """Main CLI entry point."""
     try:
         NetTopApp().run()

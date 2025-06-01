@@ -112,12 +112,14 @@ class ConnectionDetailScreen(Screen):
                         f"CPU Usage: {self.process_info.get('cpu_percent', 'N/A')}%",
                         classes="detail_item",
                     )
-                    memory_pct = round(self.process_info.get("memory_percent", 0), 2)
+                    memory_val: float = float(self.process_info.get("memory_percent", 0.0))  # type: ignore[arg-type]
+                    memory_pct = round(memory_val, 2)
                     yield Static(f"Memory Usage: {memory_pct}%", classes="detail_item")
 
                     # Network connections from this process
                     if self.process_info.get("connections"):
-                        conn_count = len(self.process_info.get("connections", []))
+                        connections = self.process_info.get("connections", [])
+                        conn_count = len(connections) if isinstance(connections, list) else 0
                         yield Static(
                             f"Active Connections: {conn_count}", classes="detail_item"
                         )
@@ -193,7 +195,7 @@ class NetTopApp(App):
         try:
             table.scroll_to(row_offset, col_offset)
             if cursor_row < table.row_count:
-                table.cursor_coordinate = (cursor_row, 0)
+                table.cursor_coordinate = (cursor_row, 0)  # type: ignore
         except Exception:
             pass
 
@@ -218,9 +220,9 @@ class NetTopApp(App):
 
     async def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         """Handle row selection in the DataTable."""
-        await self.show_connection_details(event.row_key)
+        await self.show_connection_details(str(event.row_key))
 
-    async def show_connection_details(self, row_key) -> None:
+    async def show_connection_details(self, row_key: str) -> None:
         """Show connection details for the selected row."""
         # Pause refreshing while viewing details
         self.timer.pause()
