@@ -43,6 +43,7 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.0.0",
     "black>=23.0.0",
+    "types-psutil>=5.9.0",
 ]
 
 [tool.uv]
@@ -88,3 +89,8 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+
+[dependency-groups]
+dev = [
+    "types-psutil>=7.0.0.20250601",
+]
