@@ -2,11 +2,12 @@
 <p align="center"><em>Friendly, process-aware network monitoring for your terminal</em></p>
 
 <p align="center">
-  <!-- Badges -->
+  <!-- Badges
   <img src="https://img.shields.io/pypi/pyversions/netshow?logo=python" alt="Python versions">
   <img src="https://img.shields.io/github/license/taylorwilsdon/netshow" alt="License">
   <img src="https://img.shields.io/github/actions/workflow/status/taylorwilsdon/netshow/tests.yml?label=tests&logo=github" alt="Build status">
   <img src="https://img.shields.io/badge/code%20style-ruff-black?logo=ruff" alt="Code style: ruff">
+   -->
 </p>
 
 <p align="center">
