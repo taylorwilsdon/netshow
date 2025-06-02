@@ -159,7 +159,7 @@ class ConnectionDetailScreen(Screen):
             self.app.pop_screen()
 
 
-class NetTopApp(App):
+class NetshowApp(App):
     """A real‑time network connection monitor with friendly service names.
 
     Tweaks in this revision:
@@ -278,4 +278,4 @@ class NetTopApp(App):
 
 
 if __name__ == "__main__":
-    NetTopApp().run()
+    NetshowApp().run()

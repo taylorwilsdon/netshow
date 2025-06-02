@@ -2,13 +2,13 @@
 
 import sys
 
-from .app import NetTopApp
+from .app import NetshowApp
 
 
 def main() -> None:
     """Main CLI entry point."""
     try:
-        NetTopApp().run()
+        NetshowApp().run()
     except KeyboardInterrupt:
         sys.exit(0)
 

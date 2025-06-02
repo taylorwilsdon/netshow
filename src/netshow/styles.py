@@ -1,4 +1,4 @@
-"""Styles for the NetTopApp."""
+"""Styles for the NetshowApp."""
 
 CSS = """
 $bg0: #103c48;
