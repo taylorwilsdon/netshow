@@ -10,9 +10,9 @@
    -->
 </p>
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/b5d33fa6-8472-4e95-a076-ca123b665183" width="500">
-</p>
+<div align="center" width=714>
+  <video src="https://github.com/user-attachments/assets/fef73335-fec6-4ea5-b551-5e7acf3aa0ea" width="714"></video>
+</div>
 
 ---
 
