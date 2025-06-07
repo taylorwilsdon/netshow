@@ -2,12 +2,12 @@
 <p align="center"><em>Friendly, process-aware network monitoring for your terminal</em></p>
 
 <p align="center">
-  <!-- Badges
-  <img src="https://img.shields.io/pypi/pyversions/netshow?logo=python" alt="Python versions">
-  <img src="https://img.shields.io/github/license/taylorwilsdon/netshow" alt="License">
-  <img src="https://img.shields.io/github/actions/workflow/status/taylorwilsdon/netshow/tests.yml?label=tests&logo=github" alt="Build status">
+  <img src="https://img.shields.io/badge/python-3.9%2B-blue?logo=python&logoColor=white" alt="Python versions">
+  <img src="https://img.shields.io/github/license/taylorwilsdon/netshow?color=green" alt="License">
+  <img src="https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey" alt="Platform">
   <img src="https://img.shields.io/badge/code%20style-ruff-black?logo=ruff" alt="Code style: ruff">
-   -->
+  <img src="https://img.shields.io/badge/UI-Textual-purple" alt="Built with Textual">
+  <img src="https://img.shields.io/badge/dependencies-uv-orange?logo=uv" alt="uv">
 </p>
 
 <div align="center">
@@ -84,9 +84,9 @@ netshow [--interval 1.0] [--no-colors]
 ## 👩‍💻 Development
 
 ```bash
-git clone https://github.com/your-org/netshow.git
+git clone https://github.com/taylorwilsdon/netshow.git
 cd netshow
-uv pip install -r pyproject.toml --extra dev
+uv sync --extra dev
 ```
 
 ### Quality Gates
@@ -110,7 +110,7 @@ mypy src/         # type check
 
 ## 🤝 Contributing
 
-Pull requests and ⭐ stars are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Pull requests and ⭐ stars are welcome! Found a bug or have a feature request? Please [open an issue](https://github.com/taylorwilsdon/netshow/issues).
 
 ---
 
@@ -118,5 +118,3 @@ Pull requests and ⭐ stars are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) 
 
 MIT – see [`LICENSE`](LICENSE) for full text.
 
-```
-```
