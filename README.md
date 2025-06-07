@@ -10,8 +10,8 @@
    -->
 </p>
 
-<div align="center" width=714>
-  <video src="https://github.com/user-attachments/assets/fef73335-fec6-4ea5-b551-5e7acf3aa0ea" width="714"></video>
+<div align="center">
+  <video width="1012px" src="https://github.com/user-attachments/assets/97f5af92-ec0a-4243-9894-d0c9d9470e1a"></video>
 </div>
 
 ---
