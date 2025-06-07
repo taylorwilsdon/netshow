@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/cdb035cb-415a-4e21-a6a7-181ffe709c1b" alt="NetShow demo" width="500">
+  <img src="https://github.com/user-attachments/assets/b5d33fa6-8472-4e95-a076-ca123b665183" width="500">
 </p>
 
 ---
