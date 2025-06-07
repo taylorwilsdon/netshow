@@ -10,8 +10,8 @@ from textual.containers import (
     Horizontal,
     ScrollableContainer,
     Vertical,
-    Grid,
 )
+from textual.reactive import reactive
 from textual.screen import Screen
 from textual.timer import Timer
 from textual.widgets import (
@@ -20,10 +20,7 @@ from textual.widgets import (
     Footer,
     Header,
     Static,
-    ProgressBar,
-    Label,
 )
-from textual.reactive import reactive
 
 from .helpers import get_lsof_conns, get_psutil_conns
 from .styles import CSS
