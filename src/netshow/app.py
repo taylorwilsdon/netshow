@@ -104,12 +104,12 @@ class ConnectionDetailScreen(Screen):
 
             with Horizontal(id="main_content"):
                 with Container(id="connection_details"):
-                    yield Static("📡 Connection Info", classes="detail_title")
+                    yield Static("🌐 Connection Info", classes="detail_title")
                     yield Static(
                         f"🆔 PID: {self.connection_data['pid']}", classes="detail_item"
                     )
                     yield Static(
-                        f"⚙️  Process: {self.connection_data['proc']}",
+                        f"⚙️ Process: {self.connection_data['proc']}",
                         classes="detail_item",
                     )
                     yield Static(
@@ -240,8 +240,8 @@ class NetshowApp(App):
         table = self.query_one("#connections_table", DataTable)
         table.add_columns(
             "🆔 PID",
-            "🏷️ Service",
-            "⚙️ Process",
+            "🔖 Service",
+            "⚙️  Process",
             "🏠 Local Address",
             "🌐 Remote Address",
             "📊 Status",
