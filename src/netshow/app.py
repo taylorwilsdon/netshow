@@ -4,7 +4,7 @@ from typing import TypedDict
 import psutil
 from textual import events
 from textual.app import App, ComposeResult
-from textual.containers import Container, ScrollableContainer, Vertical
+from textual.containers import Container, Horizontal, ScrollableContainer, Vertical
 from textual.screen import Screen
 from textual.timer import Timer
 from textual.widgets import Button, DataTable, Footer, Header, Static
@@ -73,83 +73,84 @@ class ConnectionDetailScreen(Screen):
                 id="detail_title",
             )
 
-            with Container(id="connection_details"):
-                yield Static(
-                    f"PID: {self.connection_data['pid']}", classes="detail_item"
-                )
-                yield Static(
-                    f"Process: {self.connection_data['proc']}", classes="detail_item"
-                )
-                yield Static(
-                    f"Friendly Name: {self.connection_data['friendly']}",
-                    classes="detail_item",
-                )
-                yield Static(
-                    f"Local Address: {self.connection_data['laddr']}",
-                    classes="detail_item",
-                    markup=False,
-                )
-                yield Static(
-                    f"Remote Address: {self.connection_data['raddr']}",
-                    classes="detail_item",
-                    markup=False,
-                )
-                yield Static(
-                    f"Status: {self.connection_data['status']}", classes="detail_item"
-                )
-
-            # Show additional process info if available
-            if self.process_info:
-                yield Static("Process Information", id="process_info_title")
-
-                with Container(id="process_info"):
+            with Horizontal(id="main_content"):
+                with Container(id="connection_details"):
+                    yield Static("Connection Info", classes="section_header")
                     yield Static(
-                        f"Executable: {self.process_info.get('exe', 'N/A')}",
+                        f"PID: {self.connection_data['pid']}", classes="detail_item"
+                    )
+                    yield Static(
+                        f"Process: {self.connection_data['proc']}", classes="detail_item"
+                    )
+                    yield Static(
+                        f"Friendly Name: {self.connection_data['friendly']}",
                         classes="detail_item",
                     )
                     yield Static(
-                        f"Command Line: {self.process_info.get('cmd', 'N/A')}",
+                        f"Local Address: {self.connection_data['laddr']}",
                         classes="detail_item",
+                        markup=False,
                     )
                     yield Static(
-                        f"Status: {self.process_info.get('status', 'N/A')}",
+                        f"Remote Address: {self.connection_data['raddr']}",
                         classes="detail_item",
+                        markup=False,
                     )
                     yield Static(
-                        f"User: {self.process_info.get('username', 'N/A')}",
-                        classes="detail_item",
-                    )
-                    yield Static(
-                        f"Working Directory: {self.process_info.get('cwd', 'N/A')}",
-                        classes="detail_item",
-                    )
-                    yield Static(
-                        f"Threads: {self.process_info.get('num_threads', 'N/A')}",
-                        classes="detail_item",
-                    )
-                    yield Static(
-                        f"CPU Usage: {self.process_info.get('cpu_percent', 'N/A')}%",
-                        classes="detail_item",
-                    )
-                    memory_percent = self.process_info.get("memory_percent", 0.0)
-                    memory_display = (
-                        f"{memory_percent:.2f}%"
-                        if isinstance(memory_percent, (int, float))
-                        else "N/A"
-                    )
-                    yield Static(
-                        f"Memory Usage: {memory_display}", classes="detail_item"
+                        f"Status: {self.connection_data['status']}", classes="detail_item"
                     )
 
-                    # Network connections from this process
-                    connections = self.process_info.get("connections", [])
-                    if connections:
-                        conn_count = (
-                            len(connections) if isinstance(connections, list) else 0
+                # Show additional process info if available
+                if self.process_info:
+                    with Container(id="process_info"):
+                        yield Static("Process Info", classes="section_header")
+                        yield Static(
+                            f"Executable: {self.process_info.get('exe', 'N/A')}",
+                            classes="detail_item",
                         )
                         yield Static(
-                            f"Active Connections: {conn_count}", classes="detail_item"
+                            f"Command Line: {self.process_info.get('cmd', 'N/A')}",
+                            classes="detail_item",
                         )
+                        yield Static(
+                            f"Status: {self.process_info.get('status', 'N/A')}",
+                            classes="detail_item",
+                        )
+                        yield Static(
+                            f"User: {self.process_info.get('username', 'N/A')}",
+                            classes="detail_item",
+                        )
+                        yield Static(
+                            f"Working Directory: {self.process_info.get('cwd', 'N/A')}",
+                            classes="detail_item",
+                        )
+                        yield Static(
+                            f"Threads: {self.process_info.get('num_threads', 'N/A')}",
+                            classes="detail_item",
+                        )
+                        yield Static(
+                            f"CPU Usage: {self.process_info.get('cpu_percent', 'N/A')}%",
+                            classes="detail_item",
+                        )
+                        memory_percent = self.process_info.get("memory_percent", 0.0)
+                        memory_display = (
+                            f"{memory_percent:.2f}%"
+                            if isinstance(memory_percent, (int, float))
+                            else "N/A"
+                        )
+                        yield Static(
+                            f"Memory Usage: {memory_display}", classes="detail_item"
+                        )
+
+                        # Network connections from this process
+                        connections = self.process_info.get("connections", [])
+                        if connections:
+                            conn_count = (
+                                len(connections) if isinstance(connections, list) else 0
+                            )
+                            yield Static(
+                                f"Active Connections: {conn_count}", classes="detail_item"
+                            )
 
             yield Button("Back to Connections", id="back_button")
 

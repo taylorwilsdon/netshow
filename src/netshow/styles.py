@@ -44,7 +44,7 @@ DataTable .header {
 }
 
 /* Detail screen styling */
-#detail_title, #process_info_title {
+#detail_title {
     background: $bg2;
     color: $fg1;
     height: 3;
@@ -53,12 +53,27 @@ DataTable .header {
     margin: 1 0;
 }
 
+#main_content {
+    height: auto;
+    margin: 0 1;
+}
+
 #connection_details, #process_info {
     background: $bg3;
     padding: 1;
-    margin: 0 1 1 1;
+    margin: 0 1 1 0;
     border: tall $bg2;
     height: auto;
+    width: 1fr;
+}
+
+.section_header {
+    background: $bg2;
+    color: $fg1;
+    padding: 0 1;
+    text-align: center;
+    margin: 0 0 1 0;
+    height: 1;
 }
 
 .detail_item {
