@@ -1,10 +1,13 @@
-# 🚦 **NetShow**
-### *Friendly, process-aware network monitoring for your terminal*
+<div align="center">
+<img align="center" width="50%" src="https://github.com/user-attachments/assets/51b8f028-2d25-4664-b4a1-44dcf9490140" />
+
+### netshow · interactive, process-aware network monitoring for your terminal
 
 <div style="margin: 20px 0;">
 
 ![Python versions](https://img.shields.io/badge/python-3.9%2B-blue?logo=python&logoColor=white) ![License](https://img.shields.io/github/license/taylorwilsdon/netshow?color=green) ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey) ![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-black?logo=ruff) ![Built with Textual](https://img.shields.io/badge/UI-Textual-purple) ![uv](https://img.shields.io/badge/dependencies-uv-orange?logo=uv)
 
+</div>
 </div>
 
 ---
