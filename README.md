@@ -5,7 +5,7 @@
 
 <div style="margin: 20px 0;">
 
-![Python versions](https://img.shields.io/badge/python-3.9%2B-blue?logo=python&logoColor=white) ![License](https://img.shields.io/github/license/taylorwilsdon/netshow?color=blue) ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey) ![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-black?logo=ruff) ![Built with Textual](https://img.shields.io/badge/UI-Textual-purple) ![uv](https://img.shields.io/badge/dependencies-uv-orange?logo=uv)
+![Python versions](https://img.shields.io/badge/python-3.9%2B-blue?logo=python&logoColor=white) ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey) ![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-black?logo=ruff) ![Built with Textual](https://img.shields.io/badge/UI-Textual-purple) ![uv](https://img.shields.io/badge/dependencies-uv-orange?logo=uv)
 
 </div>
 </div>
