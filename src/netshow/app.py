@@ -454,13 +454,13 @@ class NetshowApp(App):
         # This is a visual enhancement - in a real implementation you'd track actual speeds
         status = connection.get("status", "")
         if status == "ESTABLISHED":
-            return "🔥🔥🔥"  # Hot connection!
+            return "🔥"  # Hot connection!
         elif status == "LISTEN":
-            return "💤💤💤"  # Waiting
+            return "💤"  # Waiting
         elif "WAIT" in status:
-            return "⏳⏳"    # Waiting states
+            return "⏳"   # Waiting states
         else:
-            return "📊"      # Default
+            return "📊"  # Default
     
     def _update_metrics_display(self, total: int, active: int, listening: int) -> None:
         """Update the metrics display with current stats."""

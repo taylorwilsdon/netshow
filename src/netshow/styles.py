@@ -106,13 +106,13 @@ Tab.-active {
 
 /* === ANALYTICS DASHBOARD === */
 #analytics_title {
-    height: 5;
+    height: 3;
     background: $blue;
     color: $fg_1;
     text-align: center;
     text-style: bold;
-    padding: 1;
-    margin: 1 0 2 0;
+    padding: 0 1;
+    margin: 0;
     border: thick $br_blue;
 }
 
@@ -126,9 +126,10 @@ Tab.-active {
 #sparkline_container, #bandwidth_container {
     background: $bg_1;
     border: thick $cyan;
-    padding: 2;
+    padding: 1;
     margin: 0;
     width: 1fr;
+    height: auto;
 }
 
 .chart_title {
@@ -148,7 +149,7 @@ Tab.-active {
 Sparkline {
     background: transparent;
     color: $br_blue;
-    height: 8;
+    height: 5;
     border: none;
 }
 
@@ -158,6 +159,7 @@ ProgressBar {
     color: $br_magenta;
     height: 3;
     border: thick $magenta;
+    margin: 1 0;
 }
 
 /* === GLOBAL STYLES === */
