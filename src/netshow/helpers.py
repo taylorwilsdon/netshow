@@ -92,6 +92,13 @@ def get_lsof_conns() -> list[dict[str, str]]:
         )
     except FileNotFoundError:
         return []
+    except subprocess.CalledProcessError as e:
+        # lsof returns exit code 1 in some environments even with valid output
+        # If we have output, proceed with parsing; otherwise return empty list
+        if e.output:
+            output = e.output
+        else:
+            return []
 
     conns = []
     pattern = re.compile(
