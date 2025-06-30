@@ -18,21 +18,14 @@
 
 ---
 
-## AI-Enhanced Documentation
+### A quick plug for AI-Enhanced Docs
 
 > **This README was crafted with AI assistance, and here's why that matters**
 > 
-> When people dismiss documentation as "AI-generated," they're missing the bigger picture
-
-As a solo developer building open source tools that may only ever serve my own needs, comprehensive documentation often wouldn't happen without AI help. When done right—using agents like **Roo** or **Claude Code** that understand the entire codebase, AI doesn't just regurgitate generic content - it extracts real implementation details and creates accurate, specific documentation.
-
-**The alternative? No docs at all.** 
-
-I hope the community can appreciate these tools for what they enable: solo developers maintaining professional documentation standards while focusing on building great software.
-
----
-*This documentation was enhanced by AI with full codebase context. The result? You're reading docs that otherwise might not exist.*
-
+> As a solo developer building open source tools that may only ever serve my own needs, comprehensive documentation often wouldn't happen without AI help. Using agentic dev tools like **Roo** & **Claude Code** that understand the entire codebase, AI doesn't just regurgitate generic content - it extracts real implementation details and creates accurate, specific documentation.
+>
+> In this case, Sonnet 4 took a pass & a human (me) verified them 6/28/25.
+ 
 
 ## ✨ **Features**
 
