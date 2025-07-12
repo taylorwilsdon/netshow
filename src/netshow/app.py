@@ -39,7 +39,7 @@ BASIC_KEYBINDINGS = [
     ("s", "sort_by_status", "Sort by Status"),
     ("p", "sort_by_process", "Sort by Process"),
     ("i", "toggle_interface", "Interface"),
-    ("j", "toggle_emojis", "Emojis"),
+    ("e", "toggle_emojis", "Emojis"),
     ("ctrl+c", "quit", "Hard Quit"),
     ("/", "search", "Search"),
 ]
@@ -58,7 +58,7 @@ class ConnectionData(TypedDict):
 
 class NetworkStats(TypedDict):
     """Type definition for network statistics."""
-    
+
     total_connections: int
     established: int
     listening: int
@@ -145,7 +145,7 @@ class ConnectionDetailScreen(Screen):
                     friendly_prefix = "🏷️  " if show_emojis else ""
                     local_prefix = "🏠 " if show_emojis else ""
                     remote_prefix = "🌐 " if show_emojis else ""
-                    
+
                     yield Static(f"{conn_prefix}Connection Info", classes="detail_title")
                     yield Static(
                         f"{pid_prefix}PID: {self.connection_data['pid']}", classes="detail_item"
@@ -186,7 +186,7 @@ class ConnectionDetailScreen(Screen):
                         user_prefix = "👤 " if show_emojis else ""
                         cwd_prefix = "📂 " if show_emojis else ""
                         threads_prefix = "🧵 " if show_emojis else ""
-                        
+
                         yield Static(f"{process_title_prefix}Process Details", classes="detail_title")
                         yield Static(
                             f"{exe_prefix}Executable: {self.process_info.get('exe', 'N/A')}",
@@ -289,14 +289,14 @@ class NetshowApp(App):
     BINDINGS = BASIC_KEYBINDINGS
 
     total_connections = reactive(0)
-    active_connections = reactive(0) 
+    active_connections = reactive(0)
     listening_connections = reactive(0)
     show_filter = reactive(False)
     current_filter = reactive("")
     sort_mode = reactive("default")
     selected_interface = reactive("all")
     show_emojis = reactive(True)
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.last_network_stats = None
@@ -317,20 +317,20 @@ class NetshowApp(App):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        
+
         with Vertical():
-            with Container(id="stats_container"):  
+            with Container(id="stats_container"):
                 with Horizontal(id="metrics_row"):
                     yield Static("📊 Connections: 0", id="conn_metric", classes="metric")
                     yield Static("⚡ Active: 0", id="active_metric", classes="metric")
                     yield Static("👂 Listening: 0", id="listen_metric", classes="metric")
                     yield Static("🔥 Bandwidth: 0 B/s (all)", id="bandwidth_metric", classes="metric")
-            
+
             with Container(id="filter_container"):
                 yield Input(placeholder="🔍 Filter connections (regex supported)...", id="filter_input")
-            
+
             yield DataTable(id="connections_table")
-        
+
         yield Footer()
 
     def on_mount(self) -> None:
@@ -341,7 +341,7 @@ class NetshowApp(App):
         # Enable cursor to allow row selection
         table.cursor_type = "row"
         table.can_focus = True
-        
+
         # Hide filter initially
         filter_container = self.query_one("#filter_container")
         filter_container.display = False
@@ -351,7 +351,7 @@ class NetshowApp(App):
             REFRESH_INTERVAL, self.refresh_connections
         )
         self.refresh_connections()
-        
+
         # Focus the table for keyboard navigation
         table.focus()
 
@@ -360,10 +360,10 @@ class NetshowApp(App):
         if not sort_only:
             # Fetch fresh data from system
             self._fetch_connection_data()
-        
+
         # Always update the table display
         self._update_table_display()
-    
+
     def _fetch_connection_data(self) -> None:
         """Fetch connection data from the system."""
         using_root = os.geteuid() == 0
@@ -380,29 +380,29 @@ class NetshowApp(App):
             try:
                 pattern = re.compile(self.current_filter, re.IGNORECASE)
                 conns = [c for c in conns if any(
-                    pattern.search(str(c.get(field, ""))) 
+                    pattern.search(str(c.get(field, "")))
                     for field in ["friendly", "proc", "laddr", "raddr", "status"]
                 )]
             except re.error:
                 # Invalid regex, filter by simple string matching
                 filter_lower = self.current_filter.lower()
                 conns = [c for c in conns if any(
-                    filter_lower in str(c.get(field, "")).lower() 
+                    filter_lower in str(c.get(field, "")).lower()
                     for field in ["friendly", "proc", "laddr", "raddr", "status"]
                 )]
-        
+
         # Apply sorting
         if self.sort_mode == "status":
             conns.sort(key=lambda x: x["status"])
         elif self.sort_mode == "process":
             conns.sort(key=lambda x: x["friendly"].lower())
-        
+
         self.filtered_connections = conns
-        
+
         # Update app title with data source
         source_name = "psutil" if using_root else "lsof"
         self.title = f"Netshow ({source_name})"
-    
+
     def _update_table_display(self) -> None:
         """Update the table display with current connection data."""
         table = self.query_one("#connections_table", DataTable)
@@ -413,17 +413,17 @@ class NetshowApp(App):
         cursor_row = getattr(table, "cursor_row", 0)
 
         # Check if we can optimize by replacing rows instead of clearing
-        can_optimize = (table.row_count == len(conns) and 
-                       table.row_count > 0 and 
+        can_optimize = (table.row_count == len(conns) and
+                       table.row_count > 0 and
                        len(conns) > 100)  # Only optimize for large datasets
-        
+
         if can_optimize:
             # Try to replace existing rows to avoid flicker
             try:
                 for i, c in enumerate(conns):
                     if i >= table.row_count:
                         break
-                        
+
                     status_icon = self._get_status_icon(c["status"])
                     speed_indicator = self._get_speed_indicator(c)
                     status_text = f"{status_icon} {c['status']}" if status_icon else c["status"]
@@ -436,7 +436,7 @@ class NetshowApp(App):
                         status_text,
                         speed_indicator,
                     ]
-                    
+
                     # Get the row key for the i-th row
                     row_keys = list(table.rows.keys())
                     if i < len(row_keys):
@@ -458,7 +458,7 @@ class NetshowApp(App):
             except Exception:
                 # If optimization fails, fall back to full rebuild
                 can_optimize = False
-        
+
         if not can_optimize:
             # Fall back to clear and rebuild for smaller datasets or size changes
             table.clear()
@@ -476,7 +476,7 @@ class NetshowApp(App):
                     speed_indicator,
                 )
 
-        # Count connection types for stats  
+        # Count connection types for stats
         established = listening = time_wait = 0
         for c in conns:
             status = c["status"]
@@ -491,7 +491,7 @@ class NetshowApp(App):
         self.total_connections = len(conns)
         self.active_connections = established
         self.listening_connections = listening
-        
+
         # Update metrics display
         self._update_metrics_display(len(conns), established, listening)
 
@@ -518,7 +518,7 @@ class NetshowApp(App):
             "LAST_ACK": "🏁",
         }
         return status_icons.get(status, "❓")
-    
+
     def _get_speed_indicator(self, connection: dict) -> str:
         """Generate a speed indicator based on connection characteristics."""
         if not self.show_emojis:
@@ -537,7 +537,7 @@ class NetshowApp(App):
             return "⏳"   # Waiting states
         else:
             return "📊"  # Default
-    
+
     def _update_metrics_display(self, total: int, active: int, listening: int) -> None:
         """Update the metrics display with current stats."""
         try:
@@ -545,13 +545,13 @@ class NetshowApp(App):
             active_metric = self.query_one("#active_metric", Static)
             listen_metric = self.query_one("#listen_metric", Static)
             bandwidth_metric = self.query_one("#bandwidth_metric", Static)
-            
+
             # Emoji prefixes based on toggle state
             conn_prefix = "📊 " if self.show_emojis else ""
             active_prefix = "⚡ " if self.show_emojis else ""
             listen_prefix = "👂 " if self.show_emojis else ""
             bandwidth_prefix = "🔥 " if self.show_emojis else ""
-            
+
             # Get network I/O stats for bandwidth
             try:
                 if self.selected_interface == "all":
@@ -566,7 +566,7 @@ class NetshowApp(App):
                         net_io = psutil.net_io_counters()
                         interface_label = "all"
                         self.selected_interface = "all"
-                
+
                 current_time = time.time()
                 if self.last_network_stats and self.last_stats_time:
                     time_diff = max(0.1, current_time - self.last_stats_time)  # Avoid division by zero
@@ -580,19 +580,19 @@ class NetshowApp(App):
                 self.last_stats_time = current_time
             except (AttributeError, OSError) as e:
                 bandwidth_text = "N/A"
-            
+
             conn_metric.update(f"{conn_prefix}Connections: {total}")
             active_metric.update(f"{active_prefix}Active: {active}")
             listen_metric.update(f"{listen_prefix}Listening: {listening}")
             bandwidth_metric.update(f"{bandwidth_prefix}Bandwidth: {bandwidth_text}")
         except Exception:
             pass  # Gracefully handle missing widgets
-    
+
     def _format_bytes(self, bytes_val: int) -> str:
         """Format bytes into human readable format."""
         if bytes_val == 0:
             return "0 B"
-        
+
         for unit in ['B', 'KB', 'MB', 'GB']:
             if bytes_val < 1024.0:
                 if unit == 'B' or bytes_val < 10:
@@ -619,35 +619,6 @@ class NetshowApp(App):
             status=clean_status,
         )
 
-    async def on_key(self, event: events.Key) -> None:
-        # Debug: update title with last key pressed
-        self.title = f"Netshow - Last key: {event.key}"
-        
-        if event.key == "q" or event.key == "ctrl+c":
-            await self.action_quit()
-        elif event.key == "ctrl+r":
-            self.refresh_connections()
-        elif event.key == "f":
-            await self.action_toggle_filter()
-        elif event.key == "s":
-            self.action_sort_by_status()
-        elif event.key == "p":
-            self.action_sort_by_process()
-        elif event.key == "i":
-            self.action_toggle_interface()
-        elif event.key == "/":
-            self.action_toggle_emojis()
-        elif event.key == "enter":
-            # When Enter is pressed on a highlighted row
-            table = self.query_one("#connections_table", DataTable)
-            if table.cursor_row is not None and table.cursor_row < table.row_count:
-                # Pause refreshing while viewing details
-                self.timer.pause()
-
-                # Get the row data at cursor position and use it directly
-                row_data = table.get_row_at(table.cursor_row)
-                selected_data = self._get_selected_connection_data(tuple(row_data))
-                await self.push_screen(ConnectionDetailScreen(selected_data))
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         """Handle row highlighting in the DataTable."""
@@ -672,16 +643,16 @@ class NetshowApp(App):
         # Resume refreshing when returning from detail view
         self.timer.resume()
         self.refresh_connections()
-        
+
         # Re-focus the table for keyboard navigation
         table = self.query_one("#connections_table", DataTable)
         table.focus()
-    
+
     async def action_toggle_filter(self) -> None:
         """Toggle the filter input visibility."""
         filter_container = self.query_one("#filter_container")
         filter_input = self.query_one("#filter_input", Input)
-        
+
         if filter_container.display:
             filter_container.display = False
             self.show_filter = False
@@ -692,7 +663,7 @@ class NetshowApp(App):
             filter_container.display = True
             self.show_filter = True
             filter_input.focus()
-    
+
     async def action_search(self) -> None:
         """Focus the search input for quick access."""
         if not self.show_filter:
@@ -700,7 +671,7 @@ class NetshowApp(App):
         else:
             filter_input = self.query_one("#filter_input", Input)
             filter_input.focus()
-    
+
     def action_sort_by_status(self) -> None:
         """Sort connections by status."""
         self.sort_mode = "status" if self.sort_mode != "status" else "default"
@@ -714,7 +685,7 @@ class NetshowApp(App):
             self._update_table_display()
         else:
             self.refresh_connections()
-    
+
     def action_sort_by_process(self) -> None:
         """Sort connections by process name."""
         self.sort_mode = "process" if self.sort_mode != "process" else "default"
@@ -728,7 +699,7 @@ class NetshowApp(App):
             self._update_table_display()
         else:
             self.refresh_connections()
-    
+
     def action_toggle_interface(self) -> None:
         """Cycle through available network interfaces."""
         current_index = 0
@@ -736,39 +707,39 @@ class NetshowApp(App):
             current_index = self.available_interfaces.index(self.selected_interface)
         except ValueError:
             pass
-        
+
         next_index = (current_index + 1) % len(self.available_interfaces)
         self.selected_interface = self.available_interfaces[next_index]
-        
+
         # Reset bandwidth stats when changing interface
         self.last_network_stats = None
         self.last_stats_time = None
-    
+
     def action_toggle_emojis(self) -> None:
         """Toggle emoji display on/off."""
         self.show_emojis = not self.show_emojis
-        
+
         # Update table columns and refresh display
         self._update_table_columns()
         self._update_filter_placeholder()
-        
+
         # Force a complete refresh to update all UI elements
         self.refresh_connections()
-        
+
         # Update metrics display immediately
         self._update_metrics_display(self.total_connections, self.active_connections, self.listening_connections)
-    
+
     def _update_table_columns(self) -> None:
         """Update table column headers based on emoji setting."""
         table = self.query_one("#connections_table", DataTable)
-        
+
         # Clear existing columns if any
         table.clear(columns=True)
-        
+
         if self.show_emojis:
             table.add_columns(
                 "🆔 PID",
-                "🔖 Service", 
+                "🔖 Service",
                 "⚙️  Process",
                 "🏠 Local Address",
                 "🌐 Remote Address",
@@ -778,21 +749,21 @@ class NetshowApp(App):
         else:
             table.add_columns(
                 "PID",
-                "Service", 
+                "Service",
                 "Process",
                 "Local Address",
                 "Remote Address",
                 "Status",
                 "Speed",
             )
-    
+
     def _get_filter_placeholder(self) -> str:
         """Get filter input placeholder text based on emoji setting."""
         if self.show_emojis:
             return "🔍 Filter connections (regex supported)..."
         else:
             return "Filter connections (regex supported)..."
-    
+
     def _update_filter_placeholder(self) -> None:
         """Update filter input placeholder."""
         try:
@@ -800,7 +771,7 @@ class NetshowApp(App):
             filter_input.placeholder = self._get_filter_placeholder()
         except Exception:
             pass
-    
+
     def on_input_changed(self, event: Input.Changed) -> None:
         """Handle filter input changes."""
         if event.input.id == "filter_input":
@@ -810,7 +781,7 @@ class NetshowApp(App):
                 self.debounce_timer.stop()
             # Create new debounce timer
             self.debounce_timer = self.set_timer(0.5, self.refresh_connections)
-    
+
 
 
 if __name__ == "__main__":
