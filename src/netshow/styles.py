@@ -47,6 +47,26 @@ $br_violet: #bd96fa;
     min-width: 15;
 }
 
+/* === SPECIFIC METRIC WIDTHS === */
+#conn_metric {
+    width: 2fr;
+}
+
+#active_metric {
+    width: 1fr;
+    min-width: 12;
+}
+
+#listen_metric {
+    width: 1.1fr;
+    min-width: 15;
+}
+
+#bandwidth_metric {
+    width: 3fr;
+    min-width: 25;
+}
+
 /* === FILTER CONTAINER === */
 #filter_container {
     height: 3;
