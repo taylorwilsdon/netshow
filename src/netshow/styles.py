@@ -53,17 +53,17 @@ $br_violet: #bd96fa;
 }
 
 #active_metric {
-    width: 1fr;
+    width: 1.1fr;
     min-width: 12;
 }
 
 #listen_metric {
-    width: 1.1fr;
+    width: 1.3fr;
     min-width: 15;
 }
 
 #bandwidth_metric {
-    width: 3fr;
+    width: 2.5fr;
     min-width: 25;
 }
 

@@ -39,6 +39,7 @@ BASIC_KEYBINDINGS = [
     ("s", "sort_by_status", "Sort by Status"),
     ("p", "sort_by_process", "Sort by Process"),
     ("i", "toggle_interface", "Interface"),
+    ("j", "toggle_emojis", "Emojis"),
     ("ctrl+c", "quit", "Hard Quit"),
     ("/", "search", "Search"),
 ]
@@ -81,6 +82,9 @@ class ConnectionDetailScreen(Screen):
 
     def _get_status_icon(self, status: str) -> str:
         """Get an appropriate icon for connection status."""
+        # Check if parent app has emoji toggle disabled
+        if hasattr(self.app, 'show_emojis') and not self.app.show_emojis:
+            return ""
         status_icons = {
             "ESTABLISHED": "✅",
             "LISTEN": "👂",
@@ -125,32 +129,42 @@ class ConnectionDetailScreen(Screen):
         yield Header(show_clock=True)
 
         with ScrollableContainer():
+            # Check emoji setting from parent app
+            show_emojis = getattr(self.app, 'show_emojis', True)
+            title_prefix = "🔗 " if show_emojis else ""
             yield Static(
-                f"🔗 Connection Details: {self.connection_data['friendly']}",
+                f"{title_prefix}Connection Details: {self.connection_data['friendly']}",
                 id="detail_title",
             )
 
             with Horizontal(id="main_content"):
                 with Container(id="connection_details"):
-                    yield Static("🌐 Connection Info", classes="detail_title")
+                    conn_prefix = "🌐 " if show_emojis else ""
+                    pid_prefix = "🆔 " if show_emojis else ""
+                    proc_prefix = "⚙️ " if show_emojis else ""
+                    friendly_prefix = "🏷️  " if show_emojis else ""
+                    local_prefix = "🏠 " if show_emojis else ""
+                    remote_prefix = "🌐 " if show_emojis else ""
+                    
+                    yield Static(f"{conn_prefix}Connection Info", classes="detail_title")
                     yield Static(
-                        f"🆔 PID: {self.connection_data['pid']}", classes="detail_item"
+                        f"{pid_prefix}PID: {self.connection_data['pid']}", classes="detail_item"
                     )
                     yield Static(
-                        f"⚙️ Process: {self.connection_data['proc']}",
+                        f"{proc_prefix}Process: {self.connection_data['proc']}",
                         classes="detail_item",
                     )
                     yield Static(
-                        f"🏷️  Friendly Name: {self.connection_data['friendly']}",
+                        f"{friendly_prefix}Friendly Name: {self.connection_data['friendly']}",
                         classes="detail_item",
                     )
                     yield Static(
-                        f"🏠 Local Address: {self.connection_data['laddr']}",
+                        f"{local_prefix}Local Address: {self.connection_data['laddr']}",
                         classes="detail_item",
                         markup=False,
                     )
                     yield Static(
-                        f"🌐 Remote Address: {self.connection_data['raddr']}",
+                        f"{remote_prefix}Remote Address: {self.connection_data['raddr']}",
                         classes="detail_item",
                         markup=False,
                     )
@@ -165,40 +179,52 @@ class ConnectionDetailScreen(Screen):
                 # Show additional process info if available
                 if self.process_info:
                     with Container(id="process_info"):
-                        yield Static("🔧 Process Details", classes="detail_title")
+                        process_title_prefix = "🔧 " if show_emojis else ""
+                        exe_prefix = "📁 " if show_emojis else ""
+                        cmd_prefix = "💻 " if show_emojis else ""
+                        status_prefix = "📊 " if show_emojis else ""
+                        user_prefix = "👤 " if show_emojis else ""
+                        cwd_prefix = "📂 " if show_emojis else ""
+                        threads_prefix = "🧵 " if show_emojis else ""
+                        
+                        yield Static(f"{process_title_prefix}Process Details", classes="detail_title")
                         yield Static(
-                            f"📁 Executable: {self.process_info.get('exe', 'N/A')}",
+                            f"{exe_prefix}Executable: {self.process_info.get('exe', 'N/A')}",
                             classes="detail_item",
                         )
                         yield Static(
-                            f"💻 Command Line: {self.process_info.get('cmd', 'N/A')}",
+                            f"{cmd_prefix}Command Line: {self.process_info.get('cmd', 'N/A')}",
                             classes="detail_item",
                         )
                         yield Static(
-                            f"📊 Status: {self.process_info.get('status', 'N/A')}",
+                            f"{status_prefix}Status: {self.process_info.get('status', 'N/A')}",
                             classes="detail_item",
                         )
                         yield Static(
-                            f"👤 User: {self.process_info.get('username', 'N/A')}",
+                            f"{user_prefix}User: {self.process_info.get('username', 'N/A')}",
                             classes="detail_item",
                         )
                         yield Static(
-                            f"📂 Working Directory: {self.process_info.get('cwd', 'N/A')}",
+                            f"{cwd_prefix}Working Directory: {self.process_info.get('cwd', 'N/A')}",
                             classes="detail_item",
                         )
                         yield Static(
-                            f"🧵 Threads: {self.process_info.get('num_threads', 'N/A')}",
+                            f"{threads_prefix}Threads: {self.process_info.get('num_threads', 'N/A')}",
                             classes="detail_item",
                         )
 
                         cpu_percent = self.process_info.get("cpu_percent", 0.0)
-                        cpu_icon = (
-                            "🔥"
-                            if cpu_percent > 50
-                            else "⚡" if cpu_percent > 10 else "💤"
-                        )
+                        if show_emojis:
+                            cpu_icon = (
+                                "🔥"
+                                if cpu_percent > 50
+                                else "⚡" if cpu_percent > 10 else "💤"
+                            )
+                        else:
+                            cpu_icon = ""
+                        cpu_prefix = f"{cpu_icon} " if cpu_icon else ""
                         yield Static(
-                            f"{cpu_icon} CPU Usage: {cpu_percent:.1f}%",
+                            f"{cpu_prefix}CPU Usage: {cpu_percent:.1f}%",
                             classes="detail_item",
                         )
 
@@ -208,13 +234,17 @@ class ConnectionDetailScreen(Screen):
                             if isinstance(memory_percent, (int, float))
                             else "N/A"
                         )
-                        memory_icon = (
-                            "🚨"
-                            if memory_percent > 80
-                            else "⚠️" if memory_percent > 50 else "💾"
-                        )
+                        if show_emojis:
+                            memory_icon = (
+                                "🚨"
+                                if memory_percent > 80
+                                else "⚠️" if memory_percent > 50 else "💾"
+                            )
+                        else:
+                            memory_icon = ""
+                        memory_prefix = f"{memory_icon} " if memory_icon else ""
                         yield Static(
-                            f"{memory_icon} Memory Usage: {memory_display}",
+                            f"{memory_prefix}Memory Usage: {memory_display}",
                             classes="detail_item",
                         )
 
@@ -224,13 +254,15 @@ class ConnectionDetailScreen(Screen):
                             conn_count = (
                                 len(connections) if isinstance(connections, list) else 0
                             )
+                            active_conn_prefix = "🌐 " if show_emojis else ""
                             yield Static(
-                                f"🌐 Active Connections: {conn_count}",
+                                f"{active_conn_prefix}Active Connections: {conn_count}",
                                 classes="detail_item",
                             )
 
             with Container(id="button_container"):
-                yield Button("🔙 Back to Connections", id="back_button")
+                back_prefix = "🔙 " if show_emojis else ""
+                yield Button(f"{back_prefix}Back to Connections", id="back_button")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button press events."""
@@ -263,6 +295,7 @@ class NetshowApp(App):
     current_filter = reactive("")
     sort_mode = reactive("default")
     selected_interface = reactive("all")
+    show_emojis = reactive(True)
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -301,16 +334,9 @@ class NetshowApp(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        self._update_table_columns()
+        self._update_filter_placeholder()
         table = self.query_one("#connections_table", DataTable)
-        table.add_columns(
-            "🆔 PID",
-            "🔖 Service", 
-            "⚙️  Process",
-            "🏠 Local Address",
-            "🌐 Remote Address",
-            "📊 Status",
-            "⚡ Speed",  # New column for connection speed indicator
-        )
 
         # Enable cursor to allow row selection
         table.cursor_type = "row"
@@ -400,13 +426,14 @@ class NetshowApp(App):
                         
                     status_icon = self._get_status_icon(c["status"])
                     speed_indicator = self._get_speed_indicator(c)
+                    status_text = f"{status_icon} {c['status']}" if status_icon else c["status"]
                     new_row = [
                         c["pid"],
                         c["friendly"],
                         c["proc"],
                         c["laddr"],
                         c["raddr"],
-                        f"{status_icon} {c['status']}",
+                        status_text,
                         speed_indicator,
                     ]
                     
@@ -416,13 +443,15 @@ class NetshowApp(App):
                         row_key = row_keys[i]
                         # Verify the row key is valid before updating
                         if row_key in table.rows:
-                            table.update_cell(row_key, "🆔 PID", new_row[0])
-                            table.update_cell(row_key, "🔖 Service", new_row[1])
-                            table.update_cell(row_key, "⚙️  Process", new_row[2])
-                            table.update_cell(row_key, "🏠 Local Address", new_row[3])
-                            table.update_cell(row_key, "🌐 Remote Address", new_row[4])
-                            table.update_cell(row_key, "📊 Status", new_row[5])
-                            table.update_cell(row_key, "⚡ Speed", new_row[6])
+                            columns = list(table.columns.keys())
+                            if len(columns) >= 7:
+                                table.update_cell(row_key, columns[0], new_row[0])
+                                table.update_cell(row_key, columns[1], new_row[1])
+                                table.update_cell(row_key, columns[2], new_row[2])
+                                table.update_cell(row_key, columns[3], new_row[3])
+                                table.update_cell(row_key, columns[4], new_row[4])
+                                table.update_cell(row_key, columns[5], new_row[5])
+                                table.update_cell(row_key, columns[6], new_row[6])
                         else:
                             # Row key invalid, fall back to full rebuild
                             raise ValueError("Invalid row key, falling back to rebuild")
@@ -436,13 +465,14 @@ class NetshowApp(App):
             for c in conns:
                 status_icon = self._get_status_icon(c["status"])
                 speed_indicator = self._get_speed_indicator(c)
+                status_text = f"{status_icon} {c['status']}" if status_icon else c["status"]
                 table.add_row(
                     c["pid"],
                     c["friendly"],
                     c["proc"],
                     c["laddr"],
                     c["raddr"],
-                    f"{status_icon} {c['status']}",
+                    status_text,
                     speed_indicator,
                 )
 
@@ -473,6 +503,8 @@ class NetshowApp(App):
 
     def _get_status_icon(self, status: str) -> str:
         """Get an appropriate icon for connection status."""
+        if not self.show_emojis:
+            return ""
         status_icons = {
             "ESTABLISHED": "🚀",  # More exciting!
             "LISTEN": "👂",
@@ -489,6 +521,14 @@ class NetshowApp(App):
     
     def _get_speed_indicator(self, connection: dict) -> str:
         """Generate a speed indicator based on connection characteristics."""
+        if not self.show_emojis:
+            status = connection.get("status", "")
+            if status == "LISTEN":
+                return "WAIT"
+            elif "WAIT" in status:
+                return "WAIT"
+            else:
+                return "ACTIVE"
         # Placeholder until real throughput data is available
         status = connection.get("status", "")
         if status == "LISTEN":
@@ -505,6 +545,12 @@ class NetshowApp(App):
             active_metric = self.query_one("#active_metric", Static)
             listen_metric = self.query_one("#listen_metric", Static)
             bandwidth_metric = self.query_one("#bandwidth_metric", Static)
+            
+            # Emoji prefixes based on toggle state
+            conn_prefix = "📊 " if self.show_emojis else ""
+            active_prefix = "⚡ " if self.show_emojis else ""
+            listen_prefix = "👂 " if self.show_emojis else ""
+            bandwidth_prefix = "🔥 " if self.show_emojis else ""
             
             # Get network I/O stats for bandwidth
             try:
@@ -535,10 +581,10 @@ class NetshowApp(App):
             except (AttributeError, OSError) as e:
                 bandwidth_text = "N/A"
             
-            conn_metric.update(f"📊 Connections: {total}")
-            active_metric.update(f"⚡ Active: {active}")
-            listen_metric.update(f"👂 Listening: {listening}")
-            bandwidth_metric.update(f"🔥 Bandwidth: {bandwidth_text}")
+            conn_metric.update(f"{conn_prefix}Connections: {total}")
+            active_metric.update(f"{active_prefix}Active: {active}")
+            listen_metric.update(f"{listen_prefix}Listening: {listening}")
+            bandwidth_metric.update(f"{bandwidth_prefix}Bandwidth: {bandwidth_text}")
         except Exception:
             pass  # Gracefully handle missing widgets
     
@@ -574,6 +620,9 @@ class NetshowApp(App):
         )
 
     async def on_key(self, event: events.Key) -> None:
+        # Debug: update title with last key pressed
+        self.title = f"Netshow - Last key: {event.key}"
+        
         if event.key == "q" or event.key == "ctrl+c":
             await self.action_quit()
         elif event.key == "ctrl+r":
@@ -587,7 +636,7 @@ class NetshowApp(App):
         elif event.key == "i":
             self.action_toggle_interface()
         elif event.key == "/":
-            await self.action_search()
+            self.action_toggle_emojis()
         elif event.key == "enter":
             # When Enter is pressed on a highlighted row
             table = self.query_one("#connections_table", DataTable)
@@ -694,6 +743,63 @@ class NetshowApp(App):
         # Reset bandwidth stats when changing interface
         self.last_network_stats = None
         self.last_stats_time = None
+    
+    def action_toggle_emojis(self) -> None:
+        """Toggle emoji display on/off."""
+        self.show_emojis = not self.show_emojis
+        
+        # Update table columns and refresh display
+        self._update_table_columns()
+        self._update_filter_placeholder()
+        
+        # Force a complete refresh to update all UI elements
+        self.refresh_connections()
+        
+        # Update metrics display immediately
+        self._update_metrics_display(self.total_connections, self.active_connections, self.listening_connections)
+    
+    def _update_table_columns(self) -> None:
+        """Update table column headers based on emoji setting."""
+        table = self.query_one("#connections_table", DataTable)
+        
+        # Clear existing columns if any
+        table.clear(columns=True)
+        
+        if self.show_emojis:
+            table.add_columns(
+                "🆔 PID",
+                "🔖 Service", 
+                "⚙️  Process",
+                "🏠 Local Address",
+                "🌐 Remote Address",
+                "📊 Status",
+                "⚡ Speed",
+            )
+        else:
+            table.add_columns(
+                "PID",
+                "Service", 
+                "Process",
+                "Local Address",
+                "Remote Address",
+                "Status",
+                "Speed",
+            )
+    
+    def _get_filter_placeholder(self) -> str:
+        """Get filter input placeholder text based on emoji setting."""
+        if self.show_emojis:
+            return "🔍 Filter connections (regex supported)..."
+        else:
+            return "Filter connections (regex supported)..."
+    
+    def _update_filter_placeholder(self) -> None:
+        """Update filter input placeholder."""
+        try:
+            filter_input = self.query_one("#filter_input", Input)
+            filter_input.placeholder = self._get_filter_placeholder()
+        except Exception:
+            pass
     
     def on_input_changed(self, event: Input.Changed) -> None:
         """Handle filter input changes."""
