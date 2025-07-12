@@ -1,7 +1,6 @@
 import os
-import time
-from collections import defaultdict
 from datetime import datetime
+import time
 from typing import TypedDict, Dict, List, Tuple
 
 import psutil
@@ -39,7 +38,8 @@ BASIC_KEYBINDINGS = [
     ("f", "toggle_filter", "Filter"),
     ("s", "sort_by_status", "Sort by Status"),
     ("p", "sort_by_process", "Sort by Process"),
-    ("ctrl+c", "quit", "Quit"),
+    ("i", "toggle_interface", "Interface"),
+    ("ctrl+c", "quit", "Hard Quit"),
     ("/", "search", "Search"),
 ]
 
@@ -262,13 +262,25 @@ class NetshowApp(App):
     show_filter = reactive(False)
     current_filter = reactive("")
     sort_mode = reactive("default")
+    selected_interface = reactive("all")
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.last_network_stats = None
+        self.last_stats_time = None
         self.filtered_connections = []
         self.sound_enabled = True
         self.title = "Netshow"  # Will be updated with data source
+        self.debounce_timer = None
+        self.available_interfaces = self._get_available_interfaces()
+
+    def _get_available_interfaces(self) -> list:
+        """Get list of available network interfaces."""
+        try:
+            interfaces = ["all"] + list(psutil.net_io_counters(pernic=True).keys())
+            return interfaces
+        except Exception:
+            return ["all"]
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -279,7 +291,7 @@ class NetshowApp(App):
                     yield Static("📊 Connections: 0", id="conn_metric", classes="metric")
                     yield Static("⚡ Active: 0", id="active_metric", classes="metric")
                     yield Static("👂 Listening: 0", id="listen_metric", classes="metric")
-                    yield Static("🔥 Bandwidth: 0 B/s", id="bandwidth_metric", classes="metric")
+                    yield Static("🔥 Bandwidth: 0 B/s (all)", id="bandwidth_metric", classes="metric")
             
             with Container(id="filter_container"):
                 yield Input(placeholder="🔍 Filter connections (regex supported)...", id="filter_input")
@@ -317,15 +329,17 @@ class NetshowApp(App):
         # Focus the table for keyboard navigation
         table.focus()
 
-    def refresh_connections(self) -> None:
-        table = self.query_one("#connections_table", DataTable)
-
-        # Capture current scroll offset & cursor row
-        row_offset, col_offset = getattr(table, "scroll_offset", (0, 0))
-        cursor_row = getattr(table, "cursor_row", 0)
-
-        table.clear()
-
+    def refresh_connections(self, sort_only: bool = False) -> None:
+        """Refresh connection data and update the display."""
+        if not sort_only:
+            # Fetch fresh data from system
+            self._fetch_connection_data()
+        
+        # Always update the table display
+        self._update_table_display()
+    
+    def _fetch_connection_data(self) -> None:
+        """Fetch connection data from the system."""
         using_root = os.geteuid() == 0
 
         try:
@@ -358,6 +372,79 @@ class NetshowApp(App):
             conns.sort(key=lambda x: x["friendly"].lower())
         
         self.filtered_connections = conns
+        
+        # Update app title with data source
+        source_name = "psutil" if using_root else "lsof"
+        self.title = f"Netshow ({source_name})"
+    
+    def _update_table_display(self) -> None:
+        """Update the table display with current connection data."""
+        table = self.query_one("#connections_table", DataTable)
+        conns = self.filtered_connections
+
+        # Capture current scroll offset & cursor row for restoration
+        row_offset, col_offset = getattr(table, "scroll_offset", (0, 0))
+        cursor_row = getattr(table, "cursor_row", 0)
+
+        # Check if we can optimize by replacing rows instead of clearing
+        can_optimize = (table.row_count == len(conns) and 
+                       table.row_count > 0 and 
+                       len(conns) > 100)  # Only optimize for large datasets
+        
+        if can_optimize:
+            # Try to replace existing rows to avoid flicker
+            try:
+                for i, c in enumerate(conns):
+                    if i >= table.row_count:
+                        break
+                        
+                    status_icon = self._get_status_icon(c["status"])
+                    speed_indicator = self._get_speed_indicator(c)
+                    new_row = [
+                        c["pid"],
+                        c["friendly"],
+                        c["proc"],
+                        c["laddr"],
+                        c["raddr"],
+                        f"{status_icon} {c['status']}",
+                        speed_indicator,
+                    ]
+                    
+                    # Get the row key for the i-th row
+                    row_keys = list(table.rows.keys())
+                    if i < len(row_keys):
+                        row_key = row_keys[i]
+                        # Verify the row key is valid before updating
+                        if row_key in table.rows:
+                            table.update_cell(row_key, "🆔 PID", new_row[0])
+                            table.update_cell(row_key, "🔖 Service", new_row[1])
+                            table.update_cell(row_key, "⚙️  Process", new_row[2])
+                            table.update_cell(row_key, "🏠 Local Address", new_row[3])
+                            table.update_cell(row_key, "🌐 Remote Address", new_row[4])
+                            table.update_cell(row_key, "📊 Status", new_row[5])
+                            table.update_cell(row_key, "⚡ Speed", new_row[6])
+                        else:
+                            # Row key invalid, fall back to full rebuild
+                            raise ValueError("Invalid row key, falling back to rebuild")
+            except Exception:
+                # If optimization fails, fall back to full rebuild
+                can_optimize = False
+        
+        if not can_optimize:
+            # Fall back to clear and rebuild for smaller datasets or size changes
+            table.clear()
+            for c in conns:
+                status_icon = self._get_status_icon(c["status"])
+                speed_indicator = self._get_speed_indicator(c)
+                table.add_row(
+                    c["pid"],
+                    c["friendly"],
+                    c["proc"],
+                    c["laddr"],
+                    c["raddr"],
+                    f"{status_icon} {c['status']}",
+                    speed_indicator,
+                )
 
         # Count connection types for stats  
         established = listening = time_wait = 0
@@ -370,19 +457,6 @@ class NetshowApp(App):
             elif status == "TIME_WAIT":
                 time_wait += 1
 
-            # Add status icon and speed indicator
-            status_icon = self._get_status_icon(status)
-            speed_indicator = self._get_speed_indicator(c)
-            table.add_row(
-                c["pid"],
-                c["friendly"],
-                c["proc"],
-                c["laddr"],
-                c["raddr"],
-                f"{status_icon} {status}",
-                speed_indicator,
-            )
-
         # Update reactive stats
         self.total_connections = len(conns)
         self.active_connections = established
@@ -390,17 +464,12 @@ class NetshowApp(App):
         
         # Update metrics display
         self._update_metrics_display(len(conns), established, listening)
-        
 
-        # Restore scroll & cursor
+        # Restore scroll & cursor position
         if hasattr(table, "scroll_to"):
             table.scroll_to(row_offset, col_offset)
         if cursor_row < table.row_count and hasattr(table, "cursor_coordinate"):
             table.cursor_coordinate = (cursor_row, 0)  # type: ignore
-
-        # Update app title with data source
-        source_name = "psutil" if using_root else "lsof"
-        self.title = f"Netshow ({source_name})"
 
     def _get_status_icon(self, status: str) -> str:
         """Get an appropriate icon for connection status."""
@@ -420,11 +489,9 @@ class NetshowApp(App):
     
     def _get_speed_indicator(self, connection: dict) -> str:
         """Generate a speed indicator based on connection characteristics."""
-        # This is a visual enhancement - in a real implementation you'd track actual speeds
+        # Placeholder until real throughput data is available
         status = connection.get("status", "")
-        if status == "ESTABLISHED":
-            return "🔥"  # Hot connection!
-        elif status == "LISTEN":
+        if status == "LISTEN":
             return "💤"  # Waiting
         elif "WAIT" in status:
             return "⏳"   # Waiting states
@@ -441,30 +508,51 @@ class NetshowApp(App):
             
             # Get network I/O stats for bandwidth
             try:
-                net_io = psutil.net_io_counters()
-                if self.last_network_stats:
-                    bytes_sent_per_sec = max(0, net_io.bytes_sent - self.last_network_stats.bytes_sent)
-                    bytes_recv_per_sec = max(0, net_io.bytes_recv - self.last_network_stats.bytes_recv)
-                    total_bandwidth = bytes_sent_per_sec + bytes_recv_per_sec
-                    bandwidth_text = self._format_bytes(total_bandwidth) + "/s"
+                if self.selected_interface == "all":
+                    net_io = psutil.net_io_counters()
+                    interface_label = "all"
                 else:
-                    bandwidth_text = "0 B/s"
+                    net_io_per_nic = psutil.net_io_counters(pernic=True)
+                    net_io = net_io_per_nic.get(self.selected_interface)
+                    interface_label = self.selected_interface
+                    if not net_io:
+                        # Interface not found, fallback to all
+                        net_io = psutil.net_io_counters()
+                        interface_label = "all"
+                        self.selected_interface = "all"
+                
+                current_time = time.time()
+                if self.last_network_stats and self.last_stats_time:
+                    time_diff = max(0.1, current_time - self.last_stats_time)  # Avoid division by zero
+                    bytes_sent_diff = max(0, net_io.bytes_sent - self.last_network_stats.bytes_sent)
+                    bytes_recv_diff = max(0, net_io.bytes_recv - self.last_network_stats.bytes_recv)
+                    total_bandwidth = (bytes_sent_diff + bytes_recv_diff) / time_diff
+                    bandwidth_text = f"{self._format_bytes(int(total_bandwidth))}/s ({interface_label})"
+                else:
+                    bandwidth_text = f"0 B/s ({interface_label})"
                 self.last_network_stats = net_io
-            except:
+                self.last_stats_time = current_time
+            except (AttributeError, OSError) as e:
                 bandwidth_text = "N/A"
             
             conn_metric.update(f"📊 Connections: {total}")
             active_metric.update(f"⚡ Active: {active}")
             listen_metric.update(f"👂 Listening: {listening}")
             bandwidth_metric.update(f"🔥 Bandwidth: {bandwidth_text}")
-        except:
+        except Exception:
             pass  # Gracefully handle missing widgets
     
     def _format_bytes(self, bytes_val: int) -> str:
         """Format bytes into human readable format."""
+        if bytes_val == 0:
+            return "0 B"
+        
         for unit in ['B', 'KB', 'MB', 'GB']:
             if bytes_val < 1024.0:
-                return f"{bytes_val:.1f} {unit}"
+                if unit == 'B' or bytes_val < 10:
+                    return f"{int(bytes_val)} {unit}"
+                else:
+                    return f"{bytes_val:.1f} {unit}"
             bytes_val /= 1024.0
         return f"{bytes_val:.1f} TB"
 
@@ -496,6 +584,8 @@ class NetshowApp(App):
             self.action_sort_by_status()
         elif event.key == "p":
             self.action_sort_by_process()
+        elif event.key == "i":
+            self.action_toggle_interface()
         elif event.key == "/":
             await self.action_search()
         elif event.key == "enter":
@@ -565,19 +655,55 @@ class NetshowApp(App):
     def action_sort_by_status(self) -> None:
         """Sort connections by status."""
         self.sort_mode = "status" if self.sort_mode != "status" else "default"
-        self.refresh_connections()
+        # Re-sort existing data and update display (no need to fetch fresh data)
+        if self.filtered_connections:
+            if self.sort_mode == "status":
+                self.filtered_connections.sort(key=lambda x: x["status"])
+            else:
+                # Default sort - could add timestamp-based sorting here
+                pass
+            self._update_table_display()
+        else:
+            self.refresh_connections()
     
     def action_sort_by_process(self) -> None:
         """Sort connections by process name."""
         self.sort_mode = "process" if self.sort_mode != "process" else "default"
-        self.refresh_connections()
+        # Re-sort existing data and update display (no need to fetch fresh data)
+        if self.filtered_connections:
+            if self.sort_mode == "process":
+                self.filtered_connections.sort(key=lambda x: x["friendly"].lower())
+            else:
+                # Default sort - could add timestamp-based sorting here
+                pass
+            self._update_table_display()
+        else:
+            self.refresh_connections()
+    
+    def action_toggle_interface(self) -> None:
+        """Cycle through available network interfaces."""
+        current_index = 0
+        try:
+            current_index = self.available_interfaces.index(self.selected_interface)
+        except ValueError:
+            pass
+        
+        next_index = (current_index + 1) % len(self.available_interfaces)
+        self.selected_interface = self.available_interfaces[next_index]
+        
+        # Reset bandwidth stats when changing interface
+        self.last_network_stats = None
+        self.last_stats_time = None
     
     def on_input_changed(self, event: Input.Changed) -> None:
         """Handle filter input changes."""
         if event.input.id == "filter_input":
             self.current_filter = event.value
-            # Debounce the refresh to avoid too many updates
-            self.set_timer(0.5, self.refresh_connections)
+            # Cancel existing debounce timer if it exists
+            if self.debounce_timer is not None:
+                self.debounce_timer.stop()
+            # Create new debounce timer
+            self.debounce_timer = self.set_timer(0.5, self.refresh_connections)
     
 
 
