@@ -1,6 +1,6 @@
 import os
 import time
-from collections import defaultdict, deque
+from collections import defaultdict
 from datetime import datetime
 from typing import TypedDict, Dict, List, Tuple
 
@@ -24,10 +24,7 @@ from textual.widgets import (
     Input,
     ProgressBar,
     Rule,
-    Sparkline,
     Static,
-    TabbedContent,
-    TabPane,
 )
 
 from .helpers import get_lsof_conns, get_psutil_conns
@@ -36,7 +33,6 @@ from .styles import CSS
 # Constants
 REFRESH_INTERVAL = 3.0  # seconds
 CONNECTION_COLUMNS = ["pid", "friendly", "proc", "laddr", "raddr", "status"]
-MAX_HISTORY_POINTS = 50  # For sparkline graphs
 BASIC_KEYBINDINGS = [
     ("q", "quit", "Quit"),
     ("ctrl+r", "refresh", "Force Refresh"),
@@ -45,7 +41,6 @@ BASIC_KEYBINDINGS = [
     ("p", "sort_by_process", "Sort by Process"),
     ("ctrl+c", "quit", "Quit"),
     ("/", "search", "Search"),
-    ("tab", "next_tab", "Next Tab"),
 ]
 
 
@@ -270,42 +265,26 @@ class NetshowApp(App):
     
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.network_history: deque = deque(maxlen=MAX_HISTORY_POINTS)
-        self.connection_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=MAX_HISTORY_POINTS))
         self.last_network_stats = None
         self.filtered_connections = []
         self.sound_enabled = True
+        self.title = "Netshow"  # Will be updated with data source
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         
-        with TabbedContent(initial="main"):
-            with TabPane("🌐 Connections", id="main"):
-                with Vertical():
-                    with Container(id="stats_container"):  
-                        yield Static("🚀 Initializing Epic NetShow…", id="status_bar")
-                        with Horizontal(id="metrics_row"):
-                            yield Static("📊 Connections: 0", id="conn_metric", classes="metric")
-                            yield Static("⚡ Active: 0", id="active_metric", classes="metric")
-                            yield Static("👂 Listening: 0", id="listen_metric", classes="metric")
-                            yield Static("🔥 Bandwidth: 0 B/s", id="bandwidth_metric", classes="metric")
-                    
-                    with Container(id="filter_container"):
-                        yield Input(placeholder="🔍 Filter connections (regex supported)...", id="filter_input")
-                    
-                    yield DataTable(id="connections_table")
+        with Vertical():
+            with Container(id="stats_container"):  
+                with Horizontal(id="metrics_row"):
+                    yield Static("📊 Connections: 0", id="conn_metric", classes="metric")
+                    yield Static("⚡ Active: 0", id="active_metric", classes="metric")
+                    yield Static("👂 Listening: 0", id="listen_metric", classes="metric")
+                    yield Static("🔥 Bandwidth: 0 B/s", id="bandwidth_metric", classes="metric")
             
-            with TabPane("📈 Analytics", id="analytics"):
-                with Vertical():
-                    yield Static("📊 Network Analytics Dashboard", id="analytics_title", classes="epic-glow")
-                    with Horizontal(id="charts_container"):
-                        with Container(id="sparkline_container"):
-                            yield Static("🔥 Connection History", classes="chart_title")
-                            yield Sparkline([], id="connections_sparkline")
-                        with Container(id="bandwidth_container"):
-                            yield Static("⚡ Bandwidth Usage", classes="chart_title")
-                            yield ProgressBar(total=100, id="bandwidth_progress")
-                            yield Static("📊 Real-time bandwidth visualization", classes="chart_subtitle")
+            with Container(id="filter_container"):
+                yield Input(placeholder="🔍 Filter connections (regex supported)...", id="filter_input")
+            
+            yield DataTable(id="connections_table")
         
         yield Footer()
 
@@ -333,10 +312,10 @@ class NetshowApp(App):
         self.timer: Timer = self.set_interval(
             REFRESH_INTERVAL, self.refresh_connections
         )
-        self.analytics_timer: Timer = self.set_interval(
-            1.0, self.update_analytics  # Update analytics more frequently
-        )
         self.refresh_connections()
+        
+        # Focus the table for keyboard navigation
+        table.focus()
 
     def refresh_connections(self) -> None:
         table = self.query_one("#connections_table", DataTable)
@@ -347,7 +326,6 @@ class NetshowApp(App):
 
         table.clear()
 
-        status_bar = self.query_one("#status_bar", Static)
         using_root = os.geteuid() == 0
 
         try:
@@ -413,9 +391,6 @@ class NetshowApp(App):
         # Update metrics display
         self._update_metrics_display(len(conns), established, listening)
         
-        # Store connection history for analytics
-        current_time = time.time()
-        self.network_history.append((current_time, len(conns), established, listening))
 
         # Restore scroll & cursor
         if hasattr(table, "scroll_to"):
@@ -423,15 +398,9 @@ class NetshowApp(App):
         if cursor_row < table.row_count and hasattr(table, "cursor_coordinate"):
             table.cursor_coordinate = (cursor_row, 0)  # type: ignore
 
-        source = "🔑 psutil (root)" if using_root else "🔧 lsof"
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        filter_text = f" | 🔍 Filter: '{self.current_filter}'" if self.current_filter else ""
-        sort_text = f" | 📊 Sort: {self.sort_mode}" if self.sort_mode != "default" else ""
-        
-        status_bar.update(
-            f"🚀 Total: {len(conns)} | ✅ Active: {established} | 👂 Listening: {listening} | "
-            f"⏳ TimeWait: {time_wait} | {source} | 🕒 {timestamp}{filter_text}{sort_text}"
-        )
+        # Update app title with data source
+        source_name = "psutil" if using_root else "lsof"
+        self.title = f"Netshow ({source_name})"
 
     def _get_status_icon(self, status: str) -> str:
         """Get an appropriate icon for connection status."""
@@ -535,7 +504,6 @@ class NetshowApp(App):
             if table.cursor_row is not None and table.cursor_row < table.row_count:
                 # Pause refreshing while viewing details
                 self.timer.pause()
-                self.analytics_timer.pause()
 
                 # Get the row data at cursor position and use it directly
                 row_data = table.get_row_at(table.cursor_row)
@@ -564,8 +532,11 @@ class NetshowApp(App):
         """Called when this screen is resumed (after popping another screen)."""
         # Resume refreshing when returning from detail view
         self.timer.resume()
-        self.analytics_timer.resume()
         self.refresh_connections()
+        
+        # Re-focus the table for keyboard navigation
+        table = self.query_one("#connections_table", DataTable)
+        table.focus()
     
     async def action_toggle_filter(self) -> None:
         """Toggle the filter input visibility."""
@@ -575,6 +546,9 @@ class NetshowApp(App):
         if filter_container.display:
             filter_container.display = False
             self.show_filter = False
+            # Return focus to the DataTable when filter is closed
+            table = self.query_one("#connections_table", DataTable)
+            table.focus()
         else:
             filter_container.display = True
             self.show_filter = True
@@ -605,23 +579,6 @@ class NetshowApp(App):
             # Debounce the refresh to avoid too many updates
             self.set_timer(0.5, self.refresh_connections)
     
-    def update_analytics(self) -> None:
-        """Update the analytics dashboard with current data."""
-        try:
-            # Update sparkline with connection history
-            sparkline = self.query_one("#connections_sparkline", Sparkline)
-            if self.network_history:
-                # Extract connection counts from history
-                connection_counts = [point[1] for point in self.network_history]
-                sparkline.data = connection_counts
-            
-            # Update bandwidth progress bar
-            bandwidth_bar = self.query_one("#bandwidth_progress", ProgressBar)
-            if self.last_network_stats:
-                # This is a simple visualization - you could make it more sophisticated
-                bandwidth_bar.progress = min(100, len(self.filtered_connections))
-        except:
-            pass  # Gracefully handle missing widgets in other tabs
 
 
 if __name__ == "__main__":

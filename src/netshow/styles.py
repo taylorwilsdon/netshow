@@ -27,42 +27,6 @@ $br_cyan: #53d6c7;
 $br_orange: #fd9456;
 $br_violet: #bd96fa;
 
-/* === NEW UI COMPONENTS === */
-TabbedContent {
-    background: transparent;
-}
-
-TabPane {
-    background: transparent;
-    padding: 0;
-}
-
-Tabs {
-    background: $bg_1;
-    color: $fg_1;
-    height: 3;
-    border-bottom: solid $blue;
-}
-
-Tab {
-    background: transparent;
-    color: $fg_0;
-    border: none;
-    padding: 0 2;
-    text-style: bold;
-    margin: 0;
-}
-
-Tab:hover {
-    background: $bg_2;
-    color: $fg_1;
-}
-
-Tab.-active {
-    background: $blue;
-    color: $bg_0;
-    border: none;
-}
 
 /* === METRICS ROW === */
 #metrics_row {
@@ -104,63 +68,6 @@ Tab.-active {
     color: $fg_1;
 }
 
-/* === ANALYTICS DASHBOARD === */
-#analytics_title {
-    height: 3;
-    background: $blue;
-    color: $fg_1;
-    text-align: center;
-    text-style: bold;
-    padding: 0 1;
-    margin: 0;
-    border: thick $br_blue;
-}
-
-#charts_container {
-    height: 1fr;
-    margin: 0;
-    padding: 0;
-    border: none;
-}
-
-#sparkline_container, #bandwidth_container {
-    background: $bg_1;
-    border: thick $cyan;
-    padding: 1;
-    margin: 0;
-    width: 1fr;
-    height: auto;
-}
-
-.chart_title {
-    color: $fg_1;
-    text-style: bold;
-    margin: 0 0 1 0;
-    text-align: center;
-}
-
-.chart_subtitle {
-    color: $dim_0;
-    text-align: center;
-    margin: 1 0 0 0;
-}
-
-/* === SPARKLINE STYLING === */
-Sparkline {
-    background: transparent;
-    color: $br_blue;
-    height: 5;
-    border: none;
-}
-
-/* === PROGRESS BAR STYLING === */
-ProgressBar {
-    background: $bg_2;
-    color: $br_magenta;
-    height: 3;
-    border: thick $magenta;
-    margin: 1 0;
-}
 
 /* === GLOBAL STYLES === */
 Screen {
@@ -180,14 +87,14 @@ Header {
 Footer {
     background: $bg_1;
     color: $fg_1;
-    border-top: solid $cyan;
-    height: 3;
+    height: 1;
 }
 
 /* === STATUS BAR === */
 #stats_container {
     height: auto;
     margin: 0;
+    border: solid $dim_0;
     padding: 0;
 }
 
@@ -236,8 +143,12 @@ DataTable {
     color: $fg_0;
     width: 100%;
     height: 1fr;
-    border: solid $dim_0;
+    border: none;
     margin: 0;
+}
+
+#connections_table {
+    border: none !important;
 }
 
 DataTable .header {
@@ -245,12 +156,11 @@ DataTable .header {
     color: $fg_1;
     text-style: bold;
     height: 1;
-    border-bottom: solid $blue;
 }
 
 DataTable .datatable--cursor {
-    background: $blue;
-    color: $bg_0;
+    background: $bg_2;
+    color: $fg_1;
     text-style: bold;
 }
 
@@ -260,7 +170,8 @@ DataTable .datatable--hover {
 }
 
 DataTable:focus .datatable--cursor {
-    background: $br_blue;
+    background: $dim_0;
+    color: $fg_1;
     text-style: bold;
 }
 
@@ -299,8 +210,7 @@ DataTable:focus .datatable--cursor {
     text-align: center;
     text-style: bold;
     margin: 0 0 1 0;
-    height: 3;
-    border: thick $cyan;
+    height: 10;
 }
 
 .detail_title {
@@ -309,16 +219,14 @@ DataTable:focus .datatable--cursor {
     color: $fg_1;
     text-style: bold;
     background: $bg_2;
-    border-bottom: thick $cyan;
 }
 
 .detail_item {
-    margin: 0 0 1 0;
-    padding: 1 1;
-    color: $fg_0;
-    border-left: thick $cyan;
-    padding-left: 3;
+    margin: 0 0 1 1;
+    padding: 0 1;
+    color: $fg_1;
     background: transparent;
+    height: auto;
 }
 
 .detail_item:hover {
@@ -338,15 +246,13 @@ DataTable:focus .datatable--cursor {
 #back_button {
     background: $blue;
     color: $bg_0;
-    border: thick $blue;
     width: 30;
-    height: 4;
+    height: 3;
     text-style: bold;
 }
 
 #back_button:hover {
     background: $br_blue;
-    border: thick $br_blue;
 }
 
 #back_button:focus {
@@ -394,7 +300,6 @@ ScrollableContainer {
     outline: thick $blue;
 }
 
-/* === EPIC VISUAL EFFECTS === */
 .epic-glow {
     color: $br_blue;
     text-style: bold;
