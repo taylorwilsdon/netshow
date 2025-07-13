@@ -52,6 +52,11 @@ python-preference = "system"
 [tool.ruff]
 line-length = 100
 target-version = "py39"
+extend-ignore = [
+  "E203",  # whitespace before ':'
+  "E501",  # line too long
+]
+
 
 [tool.ruff.lint]
 select = [

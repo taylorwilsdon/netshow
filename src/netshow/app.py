@@ -603,9 +603,7 @@ class NetshowApp(App):
                         0, net_io.bytes_recv - self.last_network_stats.bytes_recv
                     )
                     total_bandwidth = (bytes_sent_diff + bytes_recv_diff) / time_diff
-                    bandwidth_text = (
-                        f"{self._format_bytes(int(total_bandwidth))}/s ({interface_label})"
-                    )
+                    bandwidth_text = f"{self._format_bytes(int(total_bandwidth))}/s ({interface_label})"
                 else:
                     bandwidth_text = f"0 B/s ({interface_label})"
                 self.last_network_stats = net_io
