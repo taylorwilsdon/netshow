@@ -289,7 +289,9 @@ class NetshowApp(App):
     """
 
     CSS = CSS
-    BINDINGS = cast(list[Union[Binding, tuple[str, str], tuple[str, str, str]]], BASIC_KEYBINDINGS)
+    BINDINGS = cast(
+        list[Union[Binding, tuple[str, str], tuple[str, str, str]]], BASIC_KEYBINDINGS
+    )
 
     total_connections = reactive(0)
     active_connections = reactive(0)
@@ -546,7 +548,9 @@ class NetshowApp(App):
         }
         return status_icons.get(status, "❓")
 
-    def _get_speed_indicator(self, connection: Union[dict[str, str], ConnectionData]) -> str:
+    def _get_speed_indicator(
+        self, connection: Union[dict[str, str], ConnectionData]
+    ) -> str:
         """Generate a speed indicator based on connection characteristics."""
         if not self.show_emojis:
             status = connection.get("status", "")
@@ -596,7 +600,10 @@ class NetshowApp(App):
                         net_io = net_io_temp
 
                 current_time = time.time()
-                if self.last_network_stats is not None and self.last_stats_time is not None:
+                if (
+                    self.last_network_stats is not None
+                    and self.last_stats_time is not None
+                ):
                     time_diff = max(
                         0.1, current_time - self.last_stats_time
                     )  # Avoid division by zero
