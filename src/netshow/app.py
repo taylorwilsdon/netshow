@@ -1,9 +1,10 @@
 import os
 import time
-from typing import TypedDict
+from typing import TypedDict, Union, Sequence, Optional, Any, cast
 
 import psutil
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.containers import (
     Container,
     Horizontal,
@@ -288,7 +289,7 @@ class NetshowApp(App):
     """
 
     CSS = CSS
-    BINDINGS = BASIC_KEYBINDINGS
+    BINDINGS = cast(list[Union[Binding, tuple[str, str], tuple[str, str, str]]], BASIC_KEYBINDINGS)
 
     total_connections = reactive(0)
     active_connections = reactive(0)
@@ -299,14 +300,14 @@ class NetshowApp(App):
     selected_interface = reactive("all")
     show_emojis = reactive(True)
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self.last_network_stats = None
-        self.last_stats_time = None
-        self.filtered_connections = []
-        self.sound_enabled = True
+        self.last_network_stats: Optional[Any] = None
+        self.last_stats_time: Optional[float] = None
+        self.filtered_connections: list[dict[str, str]] = []
+        self.sound_enabled: bool = True
         self.title = "Netshow"  # Will be updated with data source
-        self.debounce_timer = None
+        self.debounce_timer: Optional[Timer] = None
         self.available_interfaces = self._get_available_interfaces()
 
     def _get_available_interfaces(self) -> list:
@@ -545,7 +546,7 @@ class NetshowApp(App):
         }
         return status_icons.get(status, "❓")
 
-    def _get_speed_indicator(self, connection: dict) -> str:
+    def _get_speed_indicator(self, connection: Union[dict[str, str], ConnectionData]) -> str:
         """Generate a speed indicator based on connection characteristics."""
         if not self.show_emojis:
             status = connection.get("status", "")
@@ -585,16 +586,17 @@ class NetshowApp(App):
                     interface_label = "all"
                 else:
                     net_io_per_nic = psutil.net_io_counters(pernic=True)
-                    net_io = net_io_per_nic.get(self.selected_interface)
+                    net_io_temp = net_io_per_nic.get(self.selected_interface)
                     interface_label = self.selected_interface
-                    if not net_io:
+                    if not net_io_temp:
                         # Interface not found, fallback to all
-                        net_io = psutil.net_io_counters()
                         interface_label = "all"
                         self.selected_interface = "all"
+                    else:
+                        net_io = net_io_temp
 
                 current_time = time.time()
-                if self.last_network_stats and self.last_stats_time:
+                if self.last_network_stats is not None and self.last_stats_time is not None:
                     time_diff = max(
                         0.1, current_time - self.last_stats_time
                     )  # Avoid division by zero
@@ -631,7 +633,7 @@ class NetshowApp(App):
                     return f"{int(bytes_val)} {unit}"
                 else:
                     return f"{bytes_val:.1f} {unit}"
-            bytes_val /= 1024.0
+            bytes_val = int(bytes_val / 1024.0)
         return f"{bytes_val:.1f} TB"
 
     def _get_selected_connection_data(self, row_data: tuple) -> ConnectionData:

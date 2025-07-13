@@ -204,7 +204,6 @@ DataTable:focus .datatable--cursor {
     text-align: center;
     text-style: bold;
     margin: 0;
-    border: thick $blue;
 }
 
 #main_content {
@@ -218,7 +217,6 @@ DataTable:focus .datatable--cursor {
     background: $bg_1;
     padding: 2;
     margin: 0;
-    border: thick $blue;
     height: auto;
     width: 1fr;
 }
@@ -252,7 +250,7 @@ DataTable:focus .datatable--cursor {
 .detail_item:hover {
     color: $fg_1;
     background: $bg_2;
-    border-left: thick $br_blue;
+    border-left: $br_blue;
 }
 
 /* === BUTTONS === */
