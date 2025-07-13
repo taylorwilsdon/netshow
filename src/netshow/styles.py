@@ -128,24 +128,15 @@ Footer {
 }
 
 /* === LAYOUT CONTAINERS === */
+Vertical, Container, Horizontal {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
 Vertical {
     width: 100%;
     height: 1fr;
-    padding: 0;
-    margin: 0;
-    border: none;
-}
-
-Container {
-    border: none;
-    padding: 0;
-    margin: 0;
-}
-
-Horizontal {
-    border: none;
-    padding: 0;
-    margin: 0;
 }
 
 /* === EDGE BORDER FIX === */

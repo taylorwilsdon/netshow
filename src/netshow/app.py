@@ -274,19 +274,7 @@ class ConnectionDetailScreen(Screen):
 
 
 class NetshowApp(App):
-    """🚀 MIND-BLOWING Real-Time Network Monitor with Epic Visualizations!
-
-    ✨ INCREDIBLE Features:
-    • **Stunning animated gradient UI** with mesmerizing effects
-    • **Real-time data visualizations** with sparkline graphs
-    • **Advanced filtering & search** with regex support
-    • **Bandwidth monitoring** with live charts
-    • **Power user shortcuts** for lightning-fast navigation
-    • **Sound notifications** for connection events
-    • **Multi-tab interface** with dashboard views
-    • **Process-aware monitoring** with detailed drill-down
-    • **Preserves state** across refreshes like magic
-    """
+    """Network connection monitoring application using Textual TUI."""
 
     CSS = CSS
     BINDINGS = cast(
