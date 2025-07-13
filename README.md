@@ -51,6 +51,18 @@
 <td>Uses <code>psutil</code> (root) for full fidelity, falls back to <code>lsof</code> if run as a regular user</td>
 </tr>
 <tr>
+<td style="font-weight: bold;">📊 Real-time metrics</td>
+<td>Live connection counts, bandwidth monitoring with per-interface selection</td>
+</tr>
+<tr>
+<td style="font-weight: bold;">🔍 Advanced filtering</td>
+<td>Regex-powered search with live filtering across all connection fields</td>
+</tr>
+<tr>
+<td style="font-weight: bold;">🔄 Smart sorting</td>
+<td>Sort by status or process name with optimized rendering for large datasets</td>
+</tr>
+<tr>
 <td style="font-weight: bold;">🎨 Modern Textual UI</td>
 <td>Smooth scrolling, dark theme, status bar with connection count & data source</td>
 </tr>
@@ -97,6 +109,33 @@ netshow [--interval 1.0] [--no-colors]
 | **↵ / Click** | Open detail view |
 | **Esc / ←** | Back to list |
 | **q** | Quit NetShow |
+| **Ctrl+C** | Force quit (hard quit) |
+| **Ctrl+R** | Force refresh |
+| **f** | Toggle filter input |
+| **/** | Quick search (focus filter) |
+| **s** | Sort by connection status |
+| **p** | Sort by process name |
+| **i** | Cycle network interface for bandwidth monitoring |
+
+### **Advanced Features**
+
+**🔍 Filtering & Search**
+- Press `f` or `/` to open the filter input
+- Supports regex patterns for advanced matching
+- Filters across process names, addresses, and connection status
+- Live updates as you type (with debouncing)
+
+**📊 Bandwidth Monitoring**
+- Real-time bandwidth display in the metrics bar
+- Press `i` to cycle through network interfaces (`all`, `eth0`, `wlan0`, etc.)
+- Accurate per-interface monitoring for multi-NIC hosts
+- Automatic fallback to global stats if interface unavailable
+
+**🔄 Smart Performance**
+- Optimized table rendering for large connection sets (5k+ connections)
+- In-place cell updates to prevent flicker during sorting
+- Preserves scroll position and cursor during refreshes
+- Debounced filter input to avoid excessive updates
 
 ---
 
