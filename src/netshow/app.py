@@ -1,10 +1,8 @@
 import os
-from datetime import datetime
 import time
-from typing import TypedDict, Dict, List, Tuple
+from typing import TypedDict
 
 import psutil
-from textual import events
 from textual.app import App, ComposeResult
 from textual.containers import (
     Container,
@@ -21,8 +19,6 @@ from textual.widgets import (
     Footer,
     Header,
     Input,
-    ProgressBar,
-    Rule,
     Static,
 )
 
@@ -614,7 +610,7 @@ class NetshowApp(App):
                     bandwidth_text = f"0 B/s ({interface_label})"
                 self.last_network_stats = net_io
                 self.last_stats_time = current_time
-            except (AttributeError, OSError) as e:
+            except (AttributeError, OSError):
                 bandwidth_text = "N/A"
 
             conn_metric.update(f"{conn_prefix}Connections: {total}")
