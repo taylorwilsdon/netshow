@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "netshow"
-version = "0.1.2"
+version = "0.2.0"
 description = "A real-time network connection monitor with friendly service names"
 readme = "README.md"
 requires-python = ">=3.9"
