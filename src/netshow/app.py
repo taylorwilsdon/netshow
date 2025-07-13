@@ -83,7 +83,7 @@ class ConnectionDetailScreen(Screen):
     def _get_status_icon(self, status: str) -> str:
         """Get an appropriate icon for connection status."""
         # Check if parent app has emoji toggle disabled
-        if hasattr(self.app, 'show_emojis') and not self.app.show_emojis:
+        if hasattr(self.app, "show_emojis") and not self.app.show_emojis:
             return ""
         status_icons = {
             "ESTABLISHED": "✅",
@@ -130,7 +130,7 @@ class ConnectionDetailScreen(Screen):
 
         with ScrollableContainer():
             # Check emoji setting from parent app
-            show_emojis = getattr(self.app, 'show_emojis', True)
+            show_emojis = getattr(self.app, "show_emojis", True)
             title_prefix = "🔗 " if show_emojis else ""
             yield Static(
                 f"{title_prefix}Connection Details: {self.connection_data['friendly']}",
@@ -146,9 +146,12 @@ class ConnectionDetailScreen(Screen):
                     local_prefix = "🏠 " if show_emojis else ""
                     remote_prefix = "🌐 " if show_emojis else ""
 
-                    yield Static(f"{conn_prefix}Connection Info", classes="detail_title")
                     yield Static(
-                        f"{pid_prefix}PID: {self.connection_data['pid']}", classes="detail_item"
+                        f"{conn_prefix}Connection Info", classes="detail_title"
+                    )
+                    yield Static(
+                        f"{pid_prefix}PID: {self.connection_data['pid']}",
+                        classes="detail_item",
                     )
                     yield Static(
                         f"{proc_prefix}Process: {self.connection_data['proc']}",
@@ -187,7 +190,10 @@ class ConnectionDetailScreen(Screen):
                         cwd_prefix = "📂 " if show_emojis else ""
                         threads_prefix = "🧵 " if show_emojis else ""
 
-                        yield Static(f"{process_title_prefix}Process Details", classes="detail_title")
+                        yield Static(
+                            f"{process_title_prefix}Process Details",
+                            classes="detail_title",
+                        )
                         yield Static(
                             f"{exe_prefix}Executable: {self.process_info.get('exe', 'N/A')}",
                             classes="detail_item",
@@ -321,13 +327,24 @@ class NetshowApp(App):
         with Vertical():
             with Container(id="stats_container"):
                 with Horizontal(id="metrics_row"):
-                    yield Static("📊 Connections: 0", id="conn_metric", classes="metric")
+                    yield Static(
+                        "📊 Connections: 0", id="conn_metric", classes="metric"
+                    )
                     yield Static("⚡ Active: 0", id="active_metric", classes="metric")
-                    yield Static("👂 Listening: 0", id="listen_metric", classes="metric")
-                    yield Static("🔥 Bandwidth: 0 B/s (all)", id="bandwidth_metric", classes="metric")
+                    yield Static(
+                        "👂 Listening: 0", id="listen_metric", classes="metric"
+                    )
+                    yield Static(
+                        "🔥 Bandwidth: 0 B/s (all)",
+                        id="bandwidth_metric",
+                        classes="metric",
+                    )
 
             with Container(id="filter_container"):
-                yield Input(placeholder="🔍 Filter connections (regex supported)...", id="filter_input")
+                yield Input(
+                    placeholder="🔍 Filter connections (regex supported)...",
+                    id="filter_input",
+                )
 
             yield DataTable(id="connections_table")
 
@@ -377,19 +394,28 @@ class NetshowApp(App):
         # Apply filtering if active
         if self.current_filter:
             import re
+
             try:
                 pattern = re.compile(self.current_filter, re.IGNORECASE)
-                conns = [c for c in conns if any(
-                    pattern.search(str(c.get(field, "")))
-                    for field in ["friendly", "proc", "laddr", "raddr", "status"]
-                )]
+                conns = [
+                    c
+                    for c in conns
+                    if any(
+                        pattern.search(str(c.get(field, "")))
+                        for field in ["friendly", "proc", "laddr", "raddr", "status"]
+                    )
+                ]
             except re.error:
                 # Invalid regex, filter by simple string matching
                 filter_lower = self.current_filter.lower()
-                conns = [c for c in conns if any(
-                    filter_lower in str(c.get(field, "")).lower()
-                    for field in ["friendly", "proc", "laddr", "raddr", "status"]
-                )]
+                conns = [
+                    c
+                    for c in conns
+                    if any(
+                        filter_lower in str(c.get(field, "")).lower()
+                        for field in ["friendly", "proc", "laddr", "raddr", "status"]
+                    )
+                ]
 
         # Apply sorting
         if self.sort_mode == "status":
@@ -413,9 +439,9 @@ class NetshowApp(App):
         cursor_row = getattr(table, "cursor_row", 0)
 
         # Check if we can optimize by replacing rows instead of clearing
-        can_optimize = (table.row_count == len(conns) and
-                       table.row_count > 0 and
-                       len(conns) > 100)  # Only optimize for large datasets
+        can_optimize = (
+            table.row_count == len(conns) and table.row_count > 0 and len(conns) > 100
+        )  # Only optimize for large datasets
 
         if can_optimize:
             # Try to replace existing rows to avoid flicker
@@ -426,7 +452,9 @@ class NetshowApp(App):
 
                     status_icon = self._get_status_icon(c["status"])
                     speed_indicator = self._get_speed_indicator(c)
-                    status_text = f"{status_icon} {c['status']}" if status_icon else c["status"]
+                    status_text = (
+                        f"{status_icon} {c['status']}" if status_icon else c["status"]
+                    )
                     new_row = [
                         c["pid"],
                         c["friendly"],
@@ -465,7 +493,9 @@ class NetshowApp(App):
             for c in conns:
                 status_icon = self._get_status_icon(c["status"])
                 speed_indicator = self._get_speed_indicator(c)
-                status_text = f"{status_icon} {c['status']}" if status_icon else c["status"]
+                status_text = (
+                    f"{status_icon} {c['status']}" if status_icon else c["status"]
+                )
                 table.add_row(
                     c["pid"],
                     c["friendly"],
@@ -534,7 +564,7 @@ class NetshowApp(App):
         if status == "LISTEN":
             return "💤"  # Waiting
         elif "WAIT" in status:
-            return "⏳"   # Waiting states
+            return "⏳"  # Waiting states
         else:
             return "📊"  # Default
 
@@ -569,9 +599,15 @@ class NetshowApp(App):
 
                 current_time = time.time()
                 if self.last_network_stats and self.last_stats_time:
-                    time_diff = max(0.1, current_time - self.last_stats_time)  # Avoid division by zero
-                    bytes_sent_diff = max(0, net_io.bytes_sent - self.last_network_stats.bytes_sent)
-                    bytes_recv_diff = max(0, net_io.bytes_recv - self.last_network_stats.bytes_recv)
+                    time_diff = max(
+                        0.1, current_time - self.last_stats_time
+                    )  # Avoid division by zero
+                    bytes_sent_diff = max(
+                        0, net_io.bytes_sent - self.last_network_stats.bytes_sent
+                    )
+                    bytes_recv_diff = max(
+                        0, net_io.bytes_recv - self.last_network_stats.bytes_recv
+                    )
                     total_bandwidth = (bytes_sent_diff + bytes_recv_diff) / time_diff
                     bandwidth_text = f"{self._format_bytes(int(total_bandwidth))}/s ({interface_label})"
                 else:
@@ -593,9 +629,9 @@ class NetshowApp(App):
         if bytes_val == 0:
             return "0 B"
 
-        for unit in ['B', 'KB', 'MB', 'GB']:
+        for unit in ["B", "KB", "MB", "GB"]:
             if bytes_val < 1024.0:
-                if unit == 'B' or bytes_val < 10:
+                if unit == "B" or bytes_val < 10:
                     return f"{int(bytes_val)} {unit}"
                 else:
                     return f"{bytes_val:.1f} {unit}"
@@ -618,7 +654,6 @@ class NetshowApp(App):
             raddr=row_data[4],
             status=clean_status,
         )
-
 
     def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
         """Handle row highlighting in the DataTable."""
@@ -727,7 +762,9 @@ class NetshowApp(App):
         self.refresh_connections()
 
         # Update metrics display immediately
-        self._update_metrics_display(self.total_connections, self.active_connections, self.listening_connections)
+        self._update_metrics_display(
+            self.total_connections, self.active_connections, self.listening_connections
+        )
 
     def _update_table_columns(self) -> None:
         """Update table column headers based on emoji setting."""
@@ -781,7 +818,6 @@ class NetshowApp(App):
                 self.debounce_timer.stop()
             # Create new debounce timer
             self.debounce_timer = self.set_timer(0.5, self.refresh_connections)
-
 
 
 if __name__ == "__main__":
