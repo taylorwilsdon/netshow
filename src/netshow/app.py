@@ -1,6 +1,6 @@
 import os
 import time
-from typing import TypedDict, Union, Sequence, Optional, Any, cast
+from typing import Any, Optional, TypedDict, Union, cast
 
 import psutil
 from textual.app import App, ComposeResult
