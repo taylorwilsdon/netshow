@@ -101,7 +101,7 @@ Header {
     color: $fg_1;
     border-bottom: solid $blue;
     text-style: bold;
-    height: 3;
+    height: 2;
 }
 
 Footer {
@@ -305,9 +305,6 @@ ScrollableContainer {
 }
 
 /* === ACCESSIBILITY === */
-*:focus {
-    outline: thick $blue;
-}
 
 .epic-glow {
     color: $br_blue;
