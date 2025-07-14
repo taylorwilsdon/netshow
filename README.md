@@ -13,7 +13,7 @@
 ---
 
 <div align="center" width="600px">
-  <video width="600px" src="https://github.com/user-attachments/assets/97f5af92-ec0a-4243-9894-d0c9d9470e1a"></video>
+  <video width="600px" src="https://github.com/user-attachments/assets/e110f7db-f803-4aad-bef8-c3e928eed6e5"></video>
 </div>
 
 ---
