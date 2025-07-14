@@ -743,6 +743,13 @@ class NetshowApp(App):
         # Reset bandwidth stats when changing interface
         self.last_network_stats = None
         self.last_stats_time = None
+        self.refresh_connections()
+
+        # Update metrics display immediately
+        self._update_metrics_display(
+            self.total_connections, self.active_connections, self.listening_connections
+        )
+
 
     def action_toggle_emojis(self) -> None:
         """Toggle emoji display on/off."""
