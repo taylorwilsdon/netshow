@@ -141,7 +141,7 @@ Vertical {
 
 /* === EDGE BORDER FIX === */
 #connection_details {
-    border-right: none;
+    border-right: #fff;
 }
 
 #process_info {
@@ -242,7 +242,6 @@ DataTable:focus .datatable--cursor {
 .detail_item:hover {
     color: $fg_1;
     background: $bg_2;
-    border-left: $br_blue;
 }
 
 /* === BUTTONS === */
