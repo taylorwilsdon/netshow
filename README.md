@@ -111,6 +111,7 @@ netshow [--interval 1.0] [--no-colors]
 | **q** | Quit NetShow |
 | **Ctrl+C** | Force quit (hard quit) |
 | **Ctrl+R** | Force refresh |
+| **e** | Toggle emoji display on/off |
 | **f** | Toggle filter input |
 | **/** | Quick search (focus filter) |
 | **s** | Sort by connection status |
@@ -124,6 +125,12 @@ netshow [--interval 1.0] [--no-colors]
 - Supports regex patterns for advanced matching
 - Filters across process names, addresses, and connection status
 - Live updates as you type (with debouncing)
+
+**🎨 Emoji Toggle**
+- Press `e` to toggle emoji display on/off for a cleaner interface
+- When disabled, removes all emoji prefixes from UI elements
+- Useful for terminals with limited emoji support or accessibility preferences
+- Setting persists during the session
 
 **📊 Bandwidth Monitoring**
 - Real-time bandwidth display in the metrics bar
