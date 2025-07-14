@@ -202,6 +202,7 @@ DataTable:focus .datatable--cursor {
     margin: 0;
     padding: 0;
     border: none;
+    width: 100%;
 }
 
 #connection_details, #process_info {
