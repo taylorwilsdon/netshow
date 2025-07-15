@@ -15,10 +15,8 @@ from .helpers import get_lsof_conns, get_psutil_conns
 from .styles import CSS
 from .types_and_constants import (
     BASIC_KEYBINDINGS,
-    CONNECTION_COLUMNS,
     REFRESH_INTERVAL,
     ConnectionData,
-    NetworkStats,
 )
 
 
@@ -497,7 +495,6 @@ class NetshowApp(App):
         self._update_metrics_display(
             self.total_connections, self.active_connections, self.listening_connections
         )
-
 
     def action_toggle_emojis(self) -> None:
         """Toggle emoji display on/off."""

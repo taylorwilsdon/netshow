@@ -1,3 +1,5 @@
+from typing import Optional
+
 import psutil
 from textual.app import ComposeResult
 from textual.containers import Container, Horizontal, ScrollableContainer
@@ -15,7 +17,7 @@ class ConnectionDetailScreen(Screen):
     def __init__(self, connection_data: ConnectionData):
         super().__init__()
         self.connection_data = connection_data
-        self.proc = None
+        self.proc: Optional[psutil.Process] = None
         self.process_info = self._get_process_info(connection_data["pid"])
 
     def _get_status_icon(self, status: str) -> str:
@@ -47,6 +49,10 @@ class ConnectionDetailScreen(Screen):
             if self.proc is None:
                 self.proc = psutil.Process(pid)
                 self.proc.cpu_percent()  # Initialize CPU percent baseline
+
+            # Type guard to ensure mypy understands proc is not None
+            assert self.proc is not None
+
             return {
                 "name": self.proc.name(),
                 "exe": self.proc.exe(),
