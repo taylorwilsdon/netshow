@@ -15,6 +15,7 @@ class ConnectionDetailScreen(Screen):
     def __init__(self, connection_data: ConnectionData):
         super().__init__()
         self.connection_data = connection_data
+        self.proc = None
         self.process_info = self._get_process_info(connection_data["pid"])
 
     def _get_status_icon(self, status: str) -> str:
@@ -43,20 +44,22 @@ class ConnectionDetailScreen(Screen):
 
         try:
             pid = int(pid_str)
-            proc = psutil.Process(pid)
+            if self.proc is None:
+                self.proc = psutil.Process(pid)
+                self.proc.cpu_percent()  # Initialize CPU percent baseline
             return {
-                "name": proc.name(),
-                "exe": proc.exe(),
-                "cmd": " ".join(proc.cmdline()),
-                "create_time": proc.create_time(),
-                "status": proc.status(),
-                "username": proc.username(),
-                "cwd": proc.cwd(),
-                "num_threads": proc.num_threads(),
-                "cpu_percent": proc.cpu_percent(interval=0.1),
-                "memory_percent": proc.memory_percent(),
-                "open_files": proc.open_files(),
-                "connections": proc.connections(),
+                "name": self.proc.name(),
+                "exe": self.proc.exe(),
+                "cmd": " ".join(self.proc.cmdline()),
+                "create_time": self.proc.create_time(),
+                "status": self.proc.status(),
+                "username": self.proc.username(),
+                "cwd": self.proc.cwd(),
+                "num_threads": self.proc.num_threads(),
+                "cpu_percent": self.proc.cpu_percent(),
+                "memory_percent": self.proc.memory_percent(),
+                "open_files": self.proc.open_files(),
+                "connections": self.proc.connections(),
             }
         except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError):
             return {}
