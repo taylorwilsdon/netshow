@@ -12,9 +12,9 @@ $fg_1: #cad8d9;
 $red: #fa5750;
 $green: #75b938;
 $yellow: #dbb32d;
-$blue: #4695f7;
+$blue: #2d5b69;
 $magenta: #f275be;
-$cyan: #41c7b9;
+$cyan: #4191a5;
 $orange: #ed8649;
 $violet: #af88eb;
 
