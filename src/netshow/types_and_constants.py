@@ -1,5 +1,4 @@
 from typing import TypedDict
-from textual.binding import Binding
 
 # Constants
 REFRESH_INTERVAL = 3.0  # seconds
