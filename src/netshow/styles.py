@@ -12,9 +12,9 @@ $fg_1: #cad8d9;
 $red: #fa5750;
 $green: #75b938;
 $yellow: #dbb32d;
-$blue: #4695f7;
+$blue: #2d5b69;
 $magenta: #f275be;
-$cyan: #41c7b9;
+$cyan: #4191a5;
 $orange: #ed8649;
 $violet: #af88eb;
 
@@ -141,7 +141,7 @@ Vertical {
 
 /* === EDGE BORDER FIX === */
 #connection_details {
-    border-right: none;
+    border-right: #fff;
 }
 
 #process_info {
@@ -202,6 +202,7 @@ DataTable:focus .datatable--cursor {
     margin: 0;
     padding: 0;
     border: none;
+    width: 100%;
 }
 
 #connection_details, #process_info {
@@ -241,7 +242,6 @@ DataTable:focus .datatable--cursor {
 .detail_item:hover {
     color: $fg_1;
     background: $bg_2;
-    border-left: $br_blue;
 }
 
 /* === BUTTONS === */
