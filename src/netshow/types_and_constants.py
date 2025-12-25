@@ -11,6 +11,7 @@ BASIC_KEYBINDINGS = [
     ("p", "sort_by_process", "Sort by Process"),
     ("i", "toggle_interface", "Interface"),
     ("e", "toggle_emojis", "Emojis"),
+    ("v", "toggle_ipv6", "IPv6"),
     ("ctrl+c", "quit", "Hard Quit"),
     ("/", "search", "Search"),
 ]

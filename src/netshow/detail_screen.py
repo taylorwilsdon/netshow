@@ -92,9 +92,7 @@ class ConnectionDetailScreen(Screen):
                     local_prefix = "🏠 " if show_emojis else ""
                     remote_prefix = "🌐 " if show_emojis else ""
 
-                    yield Static(
-                        f"{conn_prefix}Connection Info", classes="detail_title"
-                    )
+                    yield Static(f"{conn_prefix}Connection Info", classes="detail_title")
                     yield Static(
                         f"{pid_prefix}PID: {self.connection_data['pid']}",
                         classes="detail_item",
@@ -169,9 +167,7 @@ class ConnectionDetailScreen(Screen):
                         cpu_percent = self.process_info.get("cpu_percent", 0.0)
                         if show_emojis:
                             cpu_icon = (
-                                "🔥"
-                                if cpu_percent > 50
-                                else "⚡" if cpu_percent > 10 else "💤"
+                                "🔥" if cpu_percent > 50 else "⚡" if cpu_percent > 10 else "💤"
                             )
                         else:
                             cpu_icon = ""
@@ -191,7 +187,9 @@ class ConnectionDetailScreen(Screen):
                             memory_icon = (
                                 "🚨"
                                 if memory_percent > 80
-                                else "⚠️" if memory_percent > 50 else "💾"
+                                else "⚠️"
+                                if memory_percent > 50
+                                else "💾"
                             )
                         else:
                             memory_icon = ""
@@ -204,9 +202,7 @@ class ConnectionDetailScreen(Screen):
                         # Network connections from this process
                         connections = self.process_info.get("connections", [])
                         if connections:
-                            conn_count = (
-                                len(connections) if isinstance(connections, list) else 0
-                            )
+                            conn_count = len(connections) if isinstance(connections, list) else 0
                             active_conn_prefix = "🌐 " if show_emojis else ""
                             yield Static(
                                 f"{active_conn_prefix}Active Connections: {conn_count}",

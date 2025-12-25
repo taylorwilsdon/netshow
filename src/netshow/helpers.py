@@ -69,12 +69,16 @@ def get_psutil_conns() -> list[dict[str, str]]:
                 "laddr": (
                     f"[{conn.laddr.ip}]:{conn.laddr.port}"
                     if conn.laddr and ":" in conn.laddr.ip
-                    else f"{conn.laddr.ip}:{conn.laddr.port}" if conn.laddr else ""
+                    else f"{conn.laddr.ip}:{conn.laddr.port}"
+                    if conn.laddr
+                    else ""
                 ),
                 "raddr": (
                     f"[{conn.raddr.ip}]:{conn.raddr.port}"
                     if conn.raddr and ":" in conn.raddr.ip
-                    else f"{conn.raddr.ip}:{conn.raddr.port}" if conn.raddr else ""
+                    else f"{conn.raddr.ip}:{conn.raddr.port}"
+                    if conn.raddr
+                    else ""
                 ),
                 "status": conn.status,
             }

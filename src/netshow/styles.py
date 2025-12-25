@@ -1,31 +1,24 @@
-"""Styles for the NetshowApp - Enhanced Selenized Dark Theme."""
+"""Styles for the NetshowApp - Solarized Dark Theme."""
 
 CSS = """
-/* === SELENIZED DARK COLOR PALETTE === */
-$bg_0: #103c48;
-$bg_1: #184956;
-$bg_2: #2d5b69;
-$dim_0: #72898f;
-$fg_0: #adbcbc;
-$fg_1: #cad8d9;
+/* === SOLARIZED DARK COLOR PALETTE === */
+$base03: #002b36;
+$base02: #073642;
+$base01: #586e75;
+$base00: #657b83;
+$base0: #839496;
+$base1: #93a1a1;
+$base2: #eee8d5;
+$base3: #fdf6e3;
 
-$red: #fa5750;
-$green: #75b938;
-$yellow: #dbb32d;
-$blue: #2d5b69;
-$magenta: #f275be;
-$cyan: #4191a5;
-$orange: #ed8649;
-$violet: #af88eb;
-
-$br_red: #ff665c;
-$br_green: #84c747;
-$br_yellow: #ebc13d;
-$br_blue: #58a3ff;
-$br_magenta: #ff84cd;
-$br_cyan: #53d6c7;
-$br_orange: #fd9456;
-$br_violet: #bd96fa;
+$yellow: #b58900;
+$orange: #cb4b16;
+$red: #dc322f;
+$magenta: #d33682;
+$violet: #6c71c4;
+$blue: #268bd2;
+$cyan: #2aa198;
+$green: #859900;
 
 
 /* === METRICS ROW === */
@@ -33,38 +26,57 @@ $br_violet: #bd96fa;
     height: 3;
     margin: 0;
     padding: 0 1;
+    width: 100%;
+    align: center middle;
 }
 
 .metric {
-    background: $bg_1;
-    color: $fg_1;
-    border: solid $cyan;
+    background: $base02;
+    color: $base1;
+    border: solid $base01;
     padding: 0 1;
     margin: 0;
     text-style: bold;
-    text-align: center;
-    width: 1fr;
-    min-width: 15;
+    content-align: center middle;
+    width: auto;
+    min-width: 8;
 }
 
-/* === SPECIFIC METRIC WIDTHS === */
 #conn_metric {
-    width: 2fr;
+    border: solid $blue;
+    color: $blue;
 }
 
 #active_metric {
-    width: 1.1fr;
-    min-width: 12;
+    border: solid $green;
+    color: $green;
 }
 
 #listen_metric {
-    width: 1.3fr;
-    min-width: 15;
+    border: solid $cyan;
+    color: $cyan;
 }
 
 #bandwidth_metric {
-    width: 2.5fr;
-    min-width: 25;
+    border: solid $orange;
+    color: $orange;
+}
+
+/* === BANDWIDTH SPARKLINE === */
+#bandwidth_spark {
+    width: 100%;
+    height: 2;
+    background: $base02;
+    margin: 0;
+    padding: 0 1;
+}
+
+Sparkline > .sparkline--max-color {
+    color: $orange;
+}
+
+Sparkline > .sparkline--min-color {
+    color: $cyan;
 }
 
 /* === FILTER CONTAINER === */
@@ -75,38 +87,38 @@ $br_violet: #bd96fa;
 }
 
 #filter_input {
-    background: $bg_1;
-    color: $fg_1;
+    background: $base02;
+    color: $base1;
     border: solid $magenta;
     height: 1;
     padding: 0 1;
 }
 
 #filter_input:focus {
-    background: $bg_0;
-    border: solid $br_cyan;
-    color: $fg_1;
+    background: $base03;
+    border: solid $cyan;
+    color: $base1;
 }
 
 
 /* === GLOBAL STYLES === */
 Screen {
-    background: $bg_0;
-    color: $fg_0;
+    background: $base03;
+    color: $base0;
 }
 
 /* === HEADER & FOOTER === */
 Header {
-    background: $bg_1;
-    color: $fg_1;
-    border-bottom: solid $blue;
+    background: $base02;
+    color: $base1;
+    border-bottom: solid $base01;
     text-style: bold;
     height: 2;
 }
 
 Footer {
-    background: $bg_1;
-    color: $fg_1;
+    background: $base02;
+    color: $base1;
     height: 1;
 }
 
@@ -114,13 +126,13 @@ Footer {
 #stats_container {
     height: auto;
     margin: 0;
-    border: solid $dim_0;
+    border: solid $base01;
     padding: 0;
 }
 
 #status_bar {
-    background: $bg_1;
-    color: $fg_1;
+    background: $base02;
+    color: $base1;
     height: 1;
     padding: 0 1;
     border: none;
@@ -141,7 +153,7 @@ Vertical {
 
 /* === EDGE BORDER FIX === */
 #connection_details {
-    border-right: #fff;
+    border-right: $base1;
 }
 
 #process_info {
@@ -150,8 +162,8 @@ Vertical {
 
 /* === DATA TABLE STYLING === */
 DataTable {
-    background: $bg_0;
-    color: $fg_0;
+    background: $base03;
+    color: $base0;
     width: 100%;
     height: 1fr;
     border: none;
@@ -162,34 +174,33 @@ DataTable {
     border: none !important;
 }
 
-DataTable .header {
-    background: $bg_1;
-    color: $fg_1;
-    text-style: bold;
-    height: 1;
-}
-
-DataTable .datatable--cursor {
-    background: $bg_2;
-    color: $fg_1;
+DataTable > .datatable--header {
+    background: $base02;
+    color: $base1;
     text-style: bold;
 }
 
-DataTable .datatable--hover {
-    background: $bg_1;
-    color: $fg_1;
+DataTable > .datatable--cursor {
+    background: $base01;
+    color: $base2;
+    text-style: bold;
 }
 
-DataTable:focus .datatable--cursor {
-    background: $dim_0;
-    color: $fg_1;
+DataTable > .datatable--hover {
+    background: $base02;
+    color: $base1;
+}
+
+DataTable:focus > .datatable--cursor {
+    background: $blue;
+    color: $base3;
     text-style: bold;
 }
 
 /* === DETAIL SCREEN STYLING === */
 #detail_title {
-    background: $bg_2;
-    color: $fg_1;
+    background: $base02;
+    color: $base1;
     height: 5;
     padding: 1 2;
     text-align: center;
@@ -206,7 +217,7 @@ DataTable:focus .datatable--cursor {
 }
 
 #connection_details, #process_info {
-    background: $bg_1;
+    background: $base02;
     padding: 2;
     margin: 0;
     height: auto;
@@ -214,8 +225,8 @@ DataTable:focus .datatable--cursor {
 }
 
 .section_header {
-    background: $bg_2;
-    color: $fg_1;
+    background: $base01;
+    color: $base1;
     padding: 1 2;
     text-align: center;
     text-style: bold;
@@ -226,22 +237,22 @@ DataTable:focus .datatable--cursor {
 .detail_title {
     margin: 0 0 1 0;
     padding: 1 1;
-    color: $fg_1;
+    color: $base1;
     text-style: bold;
-    background: $bg_2;
+    background: $base01;
 }
 
 .detail_item {
     margin: 0 0 1 1;
     padding: 0 1;
-    color: $fg_1;
+    color: $base0;
     background: transparent;
     height: auto;
 }
 
 .detail_item:hover {
-    color: $fg_1;
-    background: $bg_2;
+    color: $base1;
+    background: $base02;
 }
 
 /* === BUTTONS === */
@@ -254,14 +265,14 @@ DataTable:focus .datatable--cursor {
 
 #back_button {
     background: $blue;
-    color: $bg_0;
+    color: $base3;
     width: 30;
     height: 3;
     text-style: bold;
 }
 
 #back_button:hover {
-    background: $br_blue;
+    background: $cyan;
 }
 
 #back_button:focus {
@@ -276,9 +287,9 @@ Button:focus {
 /* === SCROLLABLE CONTAINERS === */
 ScrollableContainer {
     background: transparent;
-    scrollbar-background: $bg_1;
-    scrollbar-color: $blue;
-    scrollbar-color-hover: $br_blue;
+    scrollbar-background: $base02;
+    scrollbar-color: $base01;
+    scrollbar-color-hover: $blue;
     scrollbar-color-active: $cyan;
     padding: 0;
     margin: 0;
@@ -302,12 +313,5 @@ ScrollableContainer {
 
 .status-CLOSE_WAIT {
     color: $red;
-}
-
-/* === ACCESSIBILITY === */
-
-.epic-glow {
-    color: $br_blue;
-    text-style: bold;
 }
 """
