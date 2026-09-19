@@ -1,66 +1,62 @@
-# .github/workflows/python-app.yml
-# CI pipeline for NetShow:
-# * installs dependencies via pip (extras: dev)
-# * checks formatting (Black), linting (Ruff), typing (mypy)
-# * runs unit tests (pytest) on all supported Python versions
-
-name: Python application
+name: Checks
 
 on:
   push:
-    branches: ["main"]
+    branches: [main]
   pull_request:
-    branches: ["main"]
+    branches: [main]
 
 permissions:
   contents: read
 
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
-    name: Test on Python ${{ matrix.python-version }}
+  quality:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
-          python-version: "${{ matrix.python-version }}"
+          enable-cache: true
+          python-version: '3.14'
+      - run: uv sync --locked
+      - run: uv run --locked ruff format --check .
+      - run: uv run --locked ruff check .
+      - run: uv run --locked mypy src
 
-      - name: Cache pip
-        uses: actions/cache@v4
+  test:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ['3.11', '3.12', '3.13', '3.14']
+        include:
+          - os: macos-latest
+            python: '3.14'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
-          path: ~/.cache/pip
-          key: >-
-            ${{ runner.os }}-py${{ matrix.python-version }}-
-            ${{ hashFiles('pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-py${{ matrix.python-version }}-
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      - run: uv sync --locked
+      - run: uv run --locked pytest -q
 
-      - name: Install dependencies
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          python-version: '3.11'
+      - run: uv build --out-dir dist/check
+      - name: Test installation from wheel and sdist
         run: |
-          python -m pip install --upgrade pip
-          pip install ".[dev]"
-
-      # ---------- QUALITY GATES ----------
-      - name: Check formatting with Black
-        run: |
-          black --check .
-
-      - name: Lint with Ruff
-        run: |
-          ruff check .
-
-      - name: Type-check with mypy
-        run: |
-          mypy src/
-
-      # ---------- TEST SUITE ----------
-      - name: Run tests with pytest
-        run: |
-          pytest -q
+          for artifact in dist/check/*.whl dist/check/*.tar.gz; do
+            uv run --no-project --isolated --with "$artifact" python scripts/smoke_install.py
+          done

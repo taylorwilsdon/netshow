@@ -1,3 +1,5 @@
-"""NetShow - A real-time network connection monitor with friendly service names."""
+"""Netshow: interactive, process-aware network monitoring."""
 
-__version__ = "0.1.0"
+from importlib.metadata import version
+
+__version__ = version("netshow")
