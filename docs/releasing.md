@@ -19,9 +19,10 @@ version explicitly when preparing the release (a minor release is appropriate).
    process that ignores SIGTERM. Check ASCII/monochrome and ANSI themes in real terminals.
 5. Review and commit the release files, then create an annotated `vVERSION` tag and push
    normally. Never rewrite remote history as part of a release.
-6. Publish only the two reviewed versioned artifacts with `uv publish <wheel> <sdist>`.
-   Prefer trusted publishing or a token supplied through the environment; never store
-   credentials in the repository. Create the GitHub release from the matching tag.
+6. Create the GitHub release from the matching tag. Publishing the release triggers
+   `.github/workflows/workflow.yml`, which rebuilds the tagged source and publishes the
+   wheel and source distribution to PyPI through trusted publishing. The workflow can
+   also be dispatched manually with the tag name to recover a missed release event.
 
 Old versions remain available to Python 3.9/3.10 users. The new release requires 3.11+.
 There is no configuration migration, background service, or telemetry to deploy.
