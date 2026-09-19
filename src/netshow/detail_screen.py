@@ -1,223 +1,168 @@
-from typing import Optional
+"""Responsive process inspection with a CPU baseline that survives refreshes."""
 
-import psutil
+from textual import work
 from textual.app import ComposeResult
-from textual.containers import Container, Horizontal, ScrollableContainer
+from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.message import Message
 from textual.screen import Screen
-from textual.widgets import Button, Header, Static
+from textual.timer import Timer
+from textual.widgets import Button, Footer, Header, Static
 
-from .types_and_constants import ConnectionData
+from .models import Connection, ProcessDetails
+from .presentation import literal
+from .processes import ProcessInspector, control_unavailable
+from .terminate_screen import TerminateScreen
 
 
-class ConnectionDetailScreen(Screen):
-    """Screen for displaying detailed information about a selected connection."""
+class DetailFields(Vertical):
+    """Aligned labels and wrapping values that can update without rebuilding the view."""
 
-    BINDINGS = [("escape", "app.pop_screen", "Back to connections")]
-
-    def __init__(self, connection_data: ConnectionData):
-        super().__init__()
-        self.connection_data = connection_data
-        self.proc: Optional[psutil.Process] = None
-        self.process_info = self._get_process_info(connection_data["pid"])
-
-    def _get_status_icon(self, status: str) -> str:
-        """Get an appropriate icon for connection status."""
-        # Check if parent app has emoji toggle disabled
-        if hasattr(self.app, "show_emojis") and not self.app.show_emojis:
-            return ""
-        status_icons = {
-            "ESTABLISHED": "✅",
-            "LISTEN": "👂",
-            "TIME_WAIT": "⏳",
-            "CLOSE_WAIT": "⏸️",
-            "SYN_SENT": "📤",
-            "SYN_RECV": "📥",
-            "FIN_WAIT1": "🔄",
-            "FIN_WAIT2": "🔁",
-            "CLOSING": "🔚",
-            "LAST_ACK": "🏁",
-        }
-        return status_icons.get(status, "❓")
-
-    def _get_process_info(self, pid_str: str) -> dict:
-        """Get additional process information if PID is available."""
-        if pid_str == "-":
-            return {}
-
-        try:
-            pid = int(pid_str)
-            if self.proc is None:
-                self.proc = psutil.Process(pid)
-                self.proc.cpu_percent()  # Initialize CPU percent baseline
-
-            # Type guard to ensure mypy understands proc is not None
-            assert self.proc is not None
-
-            return {
-                "name": self.proc.name(),
-                "exe": self.proc.exe(),
-                "cmd": " ".join(self.proc.cmdline()),
-                "create_time": self.proc.create_time(),
-                "status": self.proc.status(),
-                "username": self.proc.username(),
-                "cwd": self.proc.cwd(),
-                "num_threads": self.proc.num_threads(),
-                "cpu_percent": self.proc.cpu_percent(),
-                "memory_percent": self.proc.memory_percent(),
-                "open_files": self.proc.open_files(),
-                "connections": self.proc.connections(),
-            }
-        except (psutil.NoSuchProcess, psutil.AccessDenied, ValueError):
-            return {}
+    def __init__(self, fields: tuple[tuple[str, str], ...], *, id: str) -> None:
+        super().__init__(id=id)
+        self.fields = fields
 
     def compose(self) -> ComposeResult:
-        """Compose the detail screen layout."""
-        yield Header(show_clock=True)
+        for index, (label, value) in enumerate(self.fields):
+            with Horizontal(classes="detail_field"):
+                yield Static(label, classes="detail_label", markup=False)
+                yield Static(
+                    literal(value), id=f"value_{index}", classes="detail_value", markup=False
+                )
 
-        with ScrollableContainer():
-            # Check emoji setting from parent app
-            show_emojis = getattr(self.app, "show_emojis", True)
-            title_prefix = "🔗 " if show_emojis else ""
-            yield Static(
-                f"{title_prefix}Connection Details: {self.connection_data['friendly']}",
-                id="detail_title",
+    def update_values(self, fields: tuple[tuple[str, str], ...]) -> None:
+        values = dict(fields)
+        for index, (label, _) in enumerate(self.fields):
+            self.query_one(f"#value_{index}", Static).update(literal(values.get(label, "—")))
+
+
+class ConnectionDetailScreen(Screen[None]):
+    BINDINGS = [
+        ("escape,left", "back", "Back"),
+        ("k", "terminate", "Terminate process"),
+        ("ctrl+r", "refresh", "Refresh"),
+    ]
+
+    class Inspected(Message):
+        def __init__(self, details: ProcessDetails) -> None:
+            super().__init__()
+            self.details = details
+
+    def __init__(self, connection: Connection) -> None:
+        super().__init__()
+        self.connection = connection
+        self.inspector = ProcessInspector(connection.identity)
+        self.timer: Timer | None = None
+        self.busy = False
+        self.active = False
+        self.process_error: str | None = None
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with VerticalScroll(id="detail_scroll"):
+            with Vertical(id="detail_content"):
+                yield Static(literal(self.connection.friendly), id="detail_title", markup=False)
+                with Horizontal(id="detail_panels"):
+                    with Vertical(id="connection_panel", classes="detail_panel"):
+                        yield Static("Connection", classes="section_title")
+                        yield DetailFields(
+                            (
+                                ("PID", str(self.connection.pid or "Unavailable")),
+                                ("Process", self.connection.process),
+                                ("Local", self.connection.local),
+                                ("Remote", self.connection.remote or "—"),
+                                ("Status", self.connection.status),
+                            ),
+                            id="connection_info",
+                        )
+                    with Vertical(id="process_panel", classes="detail_panel"):
+                        yield Static("Process", classes="section_title")
+                        yield Static("Loading process details…", id="process_status", markup=False)
+                        yield DetailFields(
+                            tuple(
+                                (label, "—")
+                                for label in (
+                                    "Name",
+                                    "Owner",
+                                    "Executable",
+                                    "Working directory",
+                                    "Command",
+                                    "Status",
+                                    "Threads",
+                                    "Memory",
+                                    "CPU",
+                                )
+                            ),
+                            id="process_info",
+                        )
+        with Horizontal(id="detail_buttons"):
+            yield Button("Back to connections", id="back", variant="primary")
+            yield Button(
+                "Terminate process…",
+                id="terminate",
+                variant="error",
+                disabled=control_unavailable(self.connection.identity) is not None,
             )
+        yield Footer()
 
-            with Horizontal(id="main_content"):
-                with Container(id="connection_details"):
-                    conn_prefix = "🌐 " if show_emojis else ""
-                    pid_prefix = "🆔 " if show_emojis else ""
-                    proc_prefix = "⚙️ " if show_emojis else ""
-                    friendly_prefix = "🏷️  " if show_emojis else ""
-                    local_prefix = "🏠 " if show_emojis else ""
-                    remote_prefix = "🌐 " if show_emojis else ""
+    def on_mount(self) -> None:
+        self.set_class(self.size.width < 100, "compact")
+        self.timer = self.set_interval(1, self.action_refresh)
+        self.active = True
+        self.action_refresh()
 
-                    yield Static(
-                        f"{conn_prefix}Connection Info", classes="detail_title"
-                    )
-                    yield Static(
-                        f"{pid_prefix}PID: {self.connection_data['pid']}",
-                        classes="detail_item",
-                    )
-                    yield Static(
-                        f"{proc_prefix}Process: {self.connection_data['proc']}",
-                        classes="detail_item",
-                    )
-                    yield Static(
-                        f"{friendly_prefix}Friendly Name: {self.connection_data['friendly']}",
-                        classes="detail_item",
-                    )
-                    yield Static(
-                        f"{local_prefix}Local Address: {self.connection_data['laddr']}",
-                        classes="detail_item",
-                        markup=False,
-                    )
-                    yield Static(
-                        f"{remote_prefix}Remote Address: {self.connection_data['raddr']}",
-                        classes="detail_item",
-                        markup=False,
-                    )
+    def on_resize(self) -> None:
+        self.set_class(self.size.width < 100, "compact")
 
-                    status = self.connection_data["status"]
-                    status_icon = self._get_status_icon(status)
-                    yield Static(
-                        f"{status_icon} Status: {status}",
-                        classes=f"detail_item status-{status}",
-                    )
+    def on_screen_resume(self) -> None:
+        self.active = True
+        if self.timer:
+            self.timer.resume()
+            self.action_refresh()
 
-                # Show additional process info if available
-                if self.process_info:
-                    with Container(id="process_info"):
-                        process_title_prefix = "🔧 " if show_emojis else ""
-                        exe_prefix = "📁 " if show_emojis else ""
-                        cmd_prefix = "💻 " if show_emojis else ""
-                        status_prefix = "📊 " if show_emojis else ""
-                        user_prefix = "👤 " if show_emojis else ""
-                        cwd_prefix = "📂 " if show_emojis else ""
-                        threads_prefix = "🧵 " if show_emojis else ""
+    def on_screen_suspend(self) -> None:
+        self.active = False
+        if self.timer:
+            self.timer.pause()
 
-                        yield Static(
-                            f"{process_title_prefix}Process Details",
-                            classes="detail_title",
-                        )
-                        yield Static(
-                            f"{exe_prefix}Executable: {self.process_info.get('exe', 'N/A')}",
-                            classes="detail_item",
-                        )
-                        yield Static(
-                            f"{cmd_prefix}Command Line: {self.process_info.get('cmd', 'N/A')}",
-                            classes="detail_item",
-                        )
-                        yield Static(
-                            f"{status_prefix}Status: {self.process_info.get('status', 'N/A')}",
-                            classes="detail_item",
-                        )
-                        yield Static(
-                            f"{user_prefix}User: {self.process_info.get('username', 'N/A')}",
-                            classes="detail_item",
-                        )
-                        yield Static(
-                            f"{cwd_prefix}Working Directory: {self.process_info.get('cwd', 'N/A')}",
-                            classes="detail_item",
-                        )
-                        yield Static(
-                            f"{threads_prefix}Threads: "
-                            f"{self.process_info.get('num_threads', 'N/A')}",
-                            classes="detail_item",
-                        )
+    def action_refresh(self) -> None:
+        if self.active and not self.busy:
+            self.busy = True
+            self.inspect_process()
 
-                        cpu_percent = self.process_info.get("cpu_percent", 0.0)
-                        if show_emojis:
-                            cpu_icon = (
-                                "🔥"
-                                if cpu_percent > 50
-                                else "⚡" if cpu_percent > 10 else "💤"
-                            )
-                        else:
-                            cpu_icon = ""
-                        cpu_prefix = f"{cpu_icon} " if cpu_icon else ""
-                        yield Static(
-                            f"{cpu_prefix}CPU Usage: {cpu_percent:.1f}%",
-                            classes="detail_item",
-                        )
+    @work(thread=True, exit_on_error=False)
+    def inspect_process(self) -> None:
+        self.post_message(self.Inspected(self.inspector.sample()))
 
-                        memory_percent = self.process_info.get("memory_percent", 0.0)
-                        memory_display = (
-                            f"{memory_percent:.2f}%"
-                            if isinstance(memory_percent, (int, float))
-                            else "N/A"
-                        )
-                        if show_emojis:
-                            memory_icon = (
-                                "🚨"
-                                if memory_percent > 80
-                                else "⚠️" if memory_percent > 50 else "💾"
-                            )
-                        else:
-                            memory_icon = ""
-                        memory_prefix = f"{memory_icon} " if memory_icon else ""
-                        yield Static(
-                            f"{memory_prefix}Memory Usage: {memory_display}",
-                            classes="detail_item",
-                        )
+    def on_connection_detail_screen_inspected(self, message: Inspected) -> None:
+        self.busy = False
+        self.process_error = message.details.error
+        status = self.query_one("#process_status", Static)
+        status.display = self.process_error is not None
+        status.update(literal(self.process_error or ""))
+        info = self.query_one("#process_info", DetailFields)
+        info.display = self.process_error is None
+        info.update_values(message.details.fields)
+        self.query_one("#terminate", Button).disabled = bool(
+            self.process_error or control_unavailable(self.connection.identity)
+        )
+        self.refresh_bindings()
 
-                        # Network connections from this process
-                        connections = self.process_info.get("connections", [])
-                        if connections:
-                            conn_count = (
-                                len(connections) if isinstance(connections, list) else 0
-                            )
-                            active_conn_prefix = "🌐 " if show_emojis else ""
-                            yield Static(
-                                f"{active_conn_prefix}Active Connections: {conn_count}",
-                                classes="detail_item",
-                            )
+    def action_back(self) -> None:
+        self.dismiss(None)
 
-            with Container(id="button_container"):
-                back_prefix = "🔙 " if show_emojis else ""
-                yield Button(f"{back_prefix}Back to Connections", id="back_button")
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        if action == "terminate":
+            return (
+                self.process_error is None and control_unavailable(self.connection.identity) is None
+            )
+        return True
+
+    def action_terminate(self) -> None:
+        if self.check_action("terminate", ()):
+            self.app.push_screen(TerminateScreen(self.connection))
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        """Handle button press events."""
-        if event.button.id == "back_button":
-            self.app.pop_screen()
+        if event.button.id == "back":
+            self.action_back()
+        elif event.button.id == "terminate":
+            self.action_terminate()

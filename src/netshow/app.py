@@ -1,570 +1,374 @@
-import os
+"""Application shell and connection screen; workers own system I/O."""
+
+import logging
 import time
-from typing import Any, Optional, Union, cast
+from collections.abc import Callable, Iterable, Sequence
 
-import psutil
-from textual.app import App, ComposeResult
-from textual.binding import Binding
-from textual.containers import Container, Horizontal, Vertical
-from textual.reactive import reactive
+from textual import work
+from textual.app import App, ComposeResult, SystemCommand
+from textual.containers import Grid, Vertical
+from textual.filter import LineFilter, Monochrome
+from textual.message import Message
+from textual.screen import Screen
 from textual.timer import Timer
-from textual.widgets import DataTable, Footer, Header, Input, Static
+from textual.widgets import Footer, Header, Input, Sparkline, Static
 
+from .bandwidth import BandwidthSampler
+from .collectors import collect_connections
+from .connection_table import ConnectionTable
 from .detail_screen import ConnectionDetailScreen
-from .helpers import get_lsof_conns, get_psutil_conns
-from .styles import CSS
-from .types_and_constants import (
-    BASIC_KEYBINDINGS,
-    REFRESH_INTERVAL,
-    ConnectionData,
-)
+from .models import BandwidthSample, CollectionResult, Connection
+from .presentation import format_bytes, literal, select_connections
+from .processes import control_unavailable
+from .terminate_screen import TerminateScreen
+from .theme import SELENIZED_DARK
+
+log = logging.getLogger(__name__)
 
 
-class NetshowApp(App):
-    """Network connection monitoring application using Textual TUI."""
+class ConnectionsScreen(Screen[None]):
+    BINDINGS = [
+        ("ctrl+r", "refresh", "Refresh"),
+        ("/", "search", "Search"),
+        ("f", "toggle_filter", "Filter"),
+        ("s", "sort_status", "Sort status"),
+        ("p", "sort_process", "Sort process"),
+        ("i", "interface", "Interface"),
+        ("e", "emojis", "Symbols"),
+        ("v", "ipv6", "IPv6"),
+        ("k", "terminate", "Terminate"),
+        ("escape", "close_filter", "Close filter"),
+    ]
 
-    CSS = CSS
-    BINDINGS = cast(
-        list[Union[Binding, tuple[str, str], tuple[str, str, str]]], BASIC_KEYBINDINGS
-    )
+    class Collected(Message):
+        def __init__(self, generation: int, result: CollectionResult) -> None:
+            super().__init__()
+            self.generation, self.result = generation, result
 
-    total_connections = reactive(0)
-    active_connections = reactive(0)
-    listening_connections = reactive(0)
-    show_filter = reactive(False)
-    current_filter = reactive("")
-    sort_mode = reactive("default")
-    selected_interface = reactive("all")
-    show_emojis = reactive(True)
+    class Sampled(Message):
+        def __init__(
+            self, sample: BandwidthSample, history: tuple[float, ...], interfaces: list[str]
+        ) -> None:
+            super().__init__()
+            self.sample, self.history, self.interfaces = sample, history, interfaces
 
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self.last_network_stats: Optional[Any] = None
-        self.last_stats_time: Optional[float] = None
-        self.filtered_connections: list[dict[str, str]] = []
-        self.sound_enabled: bool = True
-        self.title = "Netshow"  # Will be updated with data source
-        self.debounce_timer: Optional[Timer] = None
-        self.available_interfaces = self._get_available_interfaces()
-
-    def _get_available_interfaces(self) -> list:
-        """Get list of available network interfaces."""
-        try:
-            interfaces = ["all"] + list(psutil.net_io_counters(pernic=True).keys())
-            return interfaces
-        except Exception:
-            return ["all"]
+    def __init__(self, interval: float, collector: Callable[[], CollectionResult]) -> None:
+        super().__init__()
+        self.interval, self.collector = interval, collector
+        self.snapshot: tuple[Connection, ...] = ()
+        self.result = CollectionResult()
+        self.filtered_connections: list[Connection] = []
+        self.sort_mode = "default"
+        self.show_emojis = True
+        self.expand_ipv6 = False
+        self.query_text = ""
+        self.invalid_regex = False
+        self.generation = 0
+        self.collecting = False
+        self.pending = False
+        self.active = False
+        self.last_success: float | None = None
+        self.timer: Timer | None = None
+        self.bandwidth_timer: Timer | None = None
+        self.debounce: Timer | None = None
+        self.sampler = BandwidthSampler()
+        self.sampling = False
+        self.sample = BandwidthSample(available=False)
+        self.interfaces = ["all"]
+        self.selected_interface = "all"
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-
-        with Vertical():
-            with Container(id="stats_container"):
-                with Horizontal(id="metrics_row"):
-                    yield Static(
-                        "📊 Connections: 0", id="conn_metric", classes="metric"
-                    )
-                    yield Static("⚡ Active: 0", id="active_metric", classes="metric")
-                    yield Static(
-                        "👂 Listening: 0", id="listen_metric", classes="metric"
-                    )
-                    yield Static(
-                        "🔥 Bandwidth: 0 B/s (all)",
-                        id="bandwidth_metric",
-                        classes="metric",
-                    )
-
-            with Container(id="filter_container"):
-                yield Input(
-                    placeholder="🔍 Filter connections (regex supported)...",
-                    id="filter_input",
-                )
-
-            yield DataTable(id="connections_table")
-
+        with Vertical(id="metrics"):
+            with Grid(id="counts"):
+                for widget_id in ("total", "active", "listening", "bandwidth"):
+                    yield Static("—", id=widget_id, classes="metric", markup=False)
+            yield Sparkline([], id="bandwidth_spark")
+        yield Input(placeholder="Filter by PID, service, address, or status (regex)", id="filter")
+        yield Static("Collecting connections…", id="collection_status", markup=False)
+        yield Static("", id="empty_state", markup=False)
+        yield ConnectionTable()
         yield Footer()
 
     def on_mount(self) -> None:
-        self._update_table_columns()
-        self._update_filter_placeholder()
-        table = self.query_one("#connections_table", DataTable)
+        self.query_one(Input).display = False
+        self.active = True
+        self.timer = self.set_interval(self.interval, self.action_refresh)
+        self.bandwidth_timer = self.set_interval(0.5, self.sample_bandwidth)
+        self.set_interval(1, self.render_status)
+        self.action_refresh()
+        self.sample_bandwidth()
+        self.query_one(ConnectionTable).focus()
+        self.on_resize()
 
-        # Enable cursor to allow row selection
-        table.cursor_type = "row"
-        table.can_focus = True
+    def on_screen_suspend(self) -> None:
+        self.active = False
+        self.generation += 1
+        self.pending = False
+        if self.timer:
+            self.timer.pause()
+        if self.bandwidth_timer:
+            self.bandwidth_timer.pause()
 
-        # Hide filter initially
-        filter_container = self.query_one("#filter_container")
-        filter_container.display = False
+    def on_screen_resume(self) -> None:
+        self.active = True
+        if self.timer:
+            self.timer.resume()
+            self.action_refresh()
+        if self.bandwidth_timer:
+            self.bandwidth_timer.resume()
+        if self.is_mounted:
+            self.query_one(ConnectionTable).focus()
 
-        # Refresh at regular intervals
-        self.timer: Timer = self.set_interval(
-            REFRESH_INTERVAL, self.refresh_connections
-        )
-        self.refresh_connections()
+    def action_refresh(self) -> None:
+        if not self.active:
+            return
+        if self.collecting:
+            self.pending = True
+            return
+        self.collecting = True
+        self.collect(self.generation)
 
-        # Focus the table for keyboard navigation
-        table.focus()
-
-    def refresh_connections(self, sort_only: bool = False) -> None:
-        """Refresh connection data and update the display."""
-        if not sort_only:
-            # Fetch fresh data from system
-            self._fetch_connection_data()
-
-        # Always update the table display
-        self._update_table_display()
-
-    def _fetch_connection_data(self) -> None:
-        """Fetch connection data from the system."""
-        using_root = os.geteuid() == 0
-
+    @work(thread=True, exit_on_error=False)
+    def collect(self, generation: int) -> None:
         try:
-            conns = get_psutil_conns() if using_root else get_lsof_conns()
-        except (psutil.AccessDenied, PermissionError):
-            conns = get_lsof_conns()
-            using_root = False
-
-        # Apply filtering if active
-        if self.current_filter:
-            import re
-
-            try:
-                pattern = re.compile(self.current_filter, re.IGNORECASE)
-                conns = [
-                    c
-                    for c in conns
-                    if any(
-                        pattern.search(str(c.get(field, "")))
-                        for field in ["friendly", "proc", "laddr", "raddr", "status"]
-                    )
-                ]
-            except re.error:
-                # Invalid regex, filter by simple string matching
-                filter_lower = self.current_filter.lower()
-                conns = [
-                    c
-                    for c in conns
-                    if any(
-                        filter_lower in str(c.get(field, "")).lower()
-                        for field in ["friendly", "proc", "laddr", "raddr", "status"]
-                    )
-                ]
-
-        # Apply sorting
-        if self.sort_mode == "status":
-            conns.sort(key=lambda x: x["status"])
-        elif self.sort_mode == "process":
-            conns.sort(key=lambda x: x["friendly"].lower())
-
-        self.filtered_connections = conns
-
-        # Update app title with data source
-        source_name = "psutil" if using_root else "lsof"
-        self.title = f"Netshow ({source_name})"
-
-    def _update_table_display(self) -> None:
-        """Update the table display with current connection data."""
-        table = self.query_one("#connections_table", DataTable)
-        conns = self.filtered_connections
-
-        # Capture current scroll offset & cursor row for restoration
-        row_offset, col_offset = getattr(table, "scroll_offset", (0, 0))
-        cursor_row = getattr(table, "cursor_row", 0)
-
-        # Check if we can optimize by replacing rows instead of clearing
-        can_optimize = (
-            table.row_count == len(conns) and table.row_count > 0 and len(conns) > 100
-        )  # Only optimize for large datasets
-
-        if can_optimize:
-            # Try to replace existing rows to avoid flicker
-            try:
-                for i, c in enumerate(conns):
-                    if i >= table.row_count:
-                        break
-
-                    status_icon = self._get_status_icon(c["status"])
-                    speed_indicator = self._get_speed_indicator(c)
-                    status_text = (
-                        f"{status_icon} {c['status']}" if status_icon else c["status"]
-                    )
-                    new_row = [
-                        c["pid"],
-                        c["friendly"],
-                        c["proc"],
-                        c["laddr"],
-                        c["raddr"],
-                        status_text,
-                        speed_indicator,
-                    ]
-
-                    # Get the row key for the i-th row
-                    row_keys = list(table.rows.keys())
-                    if i < len(row_keys):
-                        row_key = row_keys[i]
-                        # Verify the row key is valid before updating
-                        if row_key in table.rows:
-                            columns = list(table.columns.keys())
-                            if len(columns) >= 7:
-                                table.update_cell(row_key, columns[0], new_row[0])
-                                table.update_cell(row_key, columns[1], new_row[1])
-                                table.update_cell(row_key, columns[2], new_row[2])
-                                table.update_cell(row_key, columns[3], new_row[3])
-                                table.update_cell(row_key, columns[4], new_row[4])
-                                table.update_cell(row_key, columns[5], new_row[5])
-                                table.update_cell(row_key, columns[6], new_row[6])
-                        else:
-                            # Row key invalid, fall back to full rebuild
-                            raise ValueError("Invalid row key, falling back to rebuild")
-            except Exception:
-                # If optimization fails, fall back to full rebuild
-                can_optimize = False
-
-        if not can_optimize:
-            # Fall back to clear and rebuild for smaller datasets or size changes
-            table.clear()
-            for c in conns:
-                status_icon = self._get_status_icon(c["status"])
-                speed_indicator = self._get_speed_indicator(c)
-                status_text = (
-                    f"{status_icon} {c['status']}" if status_icon else c["status"]
-                )
-                table.add_row(
-                    c["pid"],
-                    c["friendly"],
-                    c["proc"],
-                    c["laddr"],
-                    c["raddr"],
-                    status_text,
-                    speed_indicator,
-                )
-
-        # Count connection types for stats
-        established = listening = time_wait = 0
-        for c in conns:
-            status = c["status"]
-            if status == "ESTABLISHED":
-                established += 1
-            elif status == "LISTEN":
-                listening += 1
-            elif status == "TIME_WAIT":
-                time_wait += 1
-
-        # Update reactive stats
-        self.total_connections = len(conns)
-        self.active_connections = established
-        self.listening_connections = listening
-
-        # Update metrics display
-        self._update_metrics_display(len(conns), established, listening)
-
-        # Restore scroll & cursor position
-        if hasattr(table, "scroll_to"):
-            table.scroll_to(row_offset, col_offset)
-        if cursor_row < table.row_count and hasattr(table, "cursor_coordinate"):
-            table.cursor_coordinate = (cursor_row, 0)  # type: ignore
-
-    def _get_status_icon(self, status: str) -> str:
-        """Get an appropriate icon for connection status."""
-        if not self.show_emojis:
-            return ""
-        status_icons = {
-            "ESTABLISHED": "🚀",  # More exciting!
-            "LISTEN": "👂",
-            "TIME_WAIT": "⏳",
-            "CLOSE_WAIT": "⏸️",
-            "SYN_SENT": "📤",
-            "SYN_RECV": "📥",
-            "FIN_WAIT1": "🔄",
-            "FIN_WAIT2": "🔁",
-            "CLOSING": "🔚",
-            "LAST_ACK": "🏁",
-        }
-        return status_icons.get(status, "❓")
-
-    def _get_speed_indicator(
-        self, connection: Union[dict[str, str], ConnectionData]
-    ) -> str:
-        """Generate a speed indicator based on connection characteristics."""
-        if not self.show_emojis:
-            status = connection.get("status", "")
-            if status == "LISTEN":
-                return "WAIT"
-            elif "WAIT" in status:
-                return "WAIT"
-            else:
-                return "ACTIVE"
-        # Placeholder until real throughput data is available
-        status = connection.get("status", "")
-        if status == "LISTEN":
-            return "💤"  # Waiting
-        elif "WAIT" in status:
-            return "⏳"  # Waiting states
-        else:
-            return "📊"  # Default
-
-    def _update_metrics_display(self, total: int, active: int, listening: int) -> None:
-        """Update the metrics display with current stats."""
-        try:
-            conn_metric = self.query_one("#conn_metric", Static)
-            active_metric = self.query_one("#active_metric", Static)
-            listen_metric = self.query_one("#listen_metric", Static)
-            bandwidth_metric = self.query_one("#bandwidth_metric", Static)
-
-            # Emoji prefixes based on toggle state
-            conn_prefix = "📊 " if self.show_emojis else ""
-            active_prefix = "⚡ " if self.show_emojis else ""
-            listen_prefix = "👂 " if self.show_emojis else ""
-            bandwidth_prefix = "🔥 " if self.show_emojis else ""
-
-            # Get network I/O stats for bandwidth
-            try:
-                if self.selected_interface == "all":
-                    net_io = psutil.net_io_counters()
-                    interface_label = "all"
-                else:
-                    net_io_per_nic = psutil.net_io_counters(pernic=True)
-                    net_io_temp = net_io_per_nic.get(self.selected_interface)
-                    interface_label = self.selected_interface
-                    if not net_io_temp:
-                        # Interface not found, fallback to all
-                        interface_label = "all"
-                        self.selected_interface = "all"
-                    else:
-                        net_io = net_io_temp
-
-                current_time = time.time()
-                if (
-                    self.last_network_stats is not None
-                    and self.last_stats_time is not None
-                ):
-                    time_diff = max(
-                        0.1, current_time - self.last_stats_time
-                    )  # Avoid division by zero
-                    bytes_sent_diff = max(
-                        0, net_io.bytes_sent - self.last_network_stats.bytes_sent
-                    )
-                    bytes_recv_diff = max(
-                        0, net_io.bytes_recv - self.last_network_stats.bytes_recv
-                    )
-                    total_bandwidth = (bytes_sent_diff + bytes_recv_diff) / time_diff
-                    bandwidth_text = f"{self._format_bytes(int(total_bandwidth))}/s ({interface_label})"
-                else:
-                    bandwidth_text = f"0 B/s ({interface_label})"
-                self.last_network_stats = net_io
-                self.last_stats_time = current_time
-            except (AttributeError, OSError):
-                bandwidth_text = "N/A"
-
-            conn_metric.update(f"{conn_prefix}Connections: {total}")
-            active_metric.update(f"{active_prefix}Active: {active}")
-            listen_metric.update(f"{listen_prefix}Listening: {listening}")
-            bandwidth_metric.update(f"{bandwidth_prefix}Bandwidth: {bandwidth_text}")
+            result = self.collector()
         except Exception:
-            pass  # Gracefully handle missing widgets
+            # One explicit worker boundary: preserve the UI and log unexpected failures.
+            log.exception("Unexpected connection collection failure")
+            result = CollectionResult(error="Unexpected collection failure; try refreshing.")
+        self.post_message(self.Collected(generation, result))
 
-    def _format_bytes(self, bytes_val: int) -> str:
-        """Format bytes into human readable format."""
-        if bytes_val == 0:
-            return "0 B"
+    def on_connections_screen_collected(self, message: Collected) -> None:
+        self.collecting = False
+        if message.generation == self.generation and self.active:
+            self.result = message.result
+            if not message.result.error:
+                self.snapshot = message.result.connections
+                self.last_success = time.monotonic()
+            self.render_connections()
+        if self.active and (self.pending or message.generation != self.generation):
+            self.pending = False
+            self.action_refresh()
 
-        for unit in ["B", "KB", "MB", "GB"]:
-            if bytes_val < 1024.0:
-                if unit == "B" or bytes_val < 10:
-                    return f"{int(bytes_val)} {unit}"
-                else:
-                    return f"{bytes_val:.1f} {unit}"
-            bytes_val = int(bytes_val / 1024.0)
-        return f"{bytes_val:.1f} TB"
+    def render_connections(self) -> None:
+        self.filtered_connections, self.invalid_regex = select_connections(
+            self.snapshot, self.query_text, self.sort_mode
+        )
+        self.query_one(ConnectionTable).display_connections(
+            self.filtered_connections, self.show_emojis, self.expand_ipv6
+        )
+        self.render_metrics()
+        self.render_status()
+        self.refresh_bindings()
 
-    def _get_selected_connection_data(self, row_data: tuple) -> ConnectionData:
-        """Convert row data tuple to ConnectionData dict."""
-        # Extract status without icon (remove first 2 characters: icon + space)
-        status_with_icon = row_data[5]
-        clean_status = (
-            status_with_icon[2:] if len(status_with_icon) > 2 else status_with_icon
+    def render_metrics(self) -> None:
+        total = len(self.snapshot)
+        count = f"{len(self.filtered_connections)} / {total}" if self.query_text else str(total)
+        for widget_id, symbol, label, value in (
+            ("total", "📊", "Connections", count),
+            ("active", "⚡", "Active", sum(c.status == "ESTABLISHED" for c in self.snapshot)),
+            ("listening", "👂", "Listening", sum(c.status == "LISTEN" for c in self.snapshot)),
+        ):
+            prefix = f"{symbol} " if self.show_emojis else ""
+            self.query_one(f"#{widget_id}", Static).update(f"{prefix}{label}: {value}")
+        sample = self.sample
+        text = (
+            f"RX {format_bytes(sample.received)}/s   TX {format_bytes(sample.sent)}/s"
+            if sample.available
+            else "Bandwidth unavailable"
+        )
+        bandwidth = self.query_one("#bandwidth", Static)
+        prefix = "🔥 " if self.show_emojis else ""
+        bandwidth.border_title = literal(f"{prefix}Bandwidth · {sample.interface}")
+        bandwidth.update(literal(text))
+
+    def render_status(self) -> None:
+        if not self.is_mounted:
+            return
+        status = "Collecting connections…"
+        if self.last_success is not None:
+            age = int(time.monotonic() - self.last_success)
+            status = f"{self.result.source} · Updated {age}s ago · Sort: {self.sort_mode}"
+            if self.result.limited:
+                status += " · Limited visibility"
+        if self.result.error:
+            status = ("Stale data · " if self.last_success is not None else "") + self.result.error
+        if self.query_text:
+            status += " · Filter active"
+        if self.invalid_regex:
+            status += " · Invalid regex: matching literal text"
+        self.query_one("#collection_status", Static).update(literal(status))
+        empty = self.query_one("#empty_state", Static)
+        empty.display = not self.filtered_connections
+        if self.result.error and self.last_success is None:
+            empty.update("Connections unavailable. Press Ctrl+R to retry.")
+        elif self.last_success is None:
+            empty.update("Loading TCP connections…")
+        elif self.query_text:
+            empty.update("No connections match this filter.")
+        else:
+            empty.update("No visible TCP connections.")
+
+    def sample_bandwidth(self) -> None:
+        if self.active and not self.sampling:
+            self.sampling = True
+            self.read_bandwidth(self.selected_interface)
+
+    @work(thread=True, exit_on_error=False)
+    def read_bandwidth(self, interface: str) -> None:
+        sample = self.sampler.sample(interface)
+        self.post_message(
+            self.Sampled(sample, tuple(self.sampler.history), list(self.sampler.interfaces))
         )
 
-        return ConnectionData(
-            pid=row_data[0],
-            friendly=row_data[1],
-            proc=row_data[2],
-            laddr=row_data[3],
-            raddr=row_data[4],
-            status=clean_status,
-        )
+    def on_connections_screen_sampled(self, message: Sampled) -> None:
+        self.sampling = False
+        self.interfaces = message.interfaces
+        # A user may have switched interfaces while the worker was running.
+        if (
+            message.sample.interface != self.selected_interface
+            and self.selected_interface in self.interfaces
+        ):
+            return
+        self.sample = message.sample
+        self.selected_interface = message.sample.interface
+        self.query_one(Sparkline).data = message.history
+        self.render_metrics()
 
-    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
-        """Handle row highlighting in the DataTable."""
-        # This event fires when cursor moves over rows
-        pass
+    def on_resize(self) -> None:
+        if self.is_mounted:
+            self.set_class(self.size.width < 100, "compact")
+            self.query_one(Sparkline).display = self.size.width >= 80
 
-    async def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
-        """Handle row selection in the DataTable."""
-        # Pause refreshing while viewing details
-        self.timer.pause()
+    def check_action(self, action: str, parameters: tuple[object, ...]) -> bool | None:
+        if not self.is_mounted:
+            return False
+        if action == "close_filter":
+            return self.query_one(Input).display
+        if isinstance(self.focused, Input) and action not in ("search", "refresh"):
+            return False
+        if action == "terminate":
+            selected = self.query_one(ConnectionTable).selected
+            return selected is not None and control_unavailable(selected.identity) is None
+        return True
 
-        # Get the selected row's data
-        table = self.query_one("#connections_table", DataTable)
-        row_data = table.get_row(event.row_key)
-        selected_data = self._get_selected_connection_data(tuple(row_data))
+    def action_search(self) -> None:
+        field = self.query_one(Input)
+        field.display = True
+        field.focus()
 
-        # Push the detail screen
-        await self.push_screen(ConnectionDetailScreen(selected_data))
+    def action_close_filter(self) -> None:
+        self.query_one(Input).display = False
+        self.query_one(ConnectionTable).focus()
 
-    async def on_screen_resume(self) -> None:
-        """Called when this screen is resumed (after popping another screen)."""
-        # Resume refreshing when returning from detail view
-        self.timer.resume()
-        self.refresh_connections()
-
-        # Re-focus the table for keyboard navigation
-        table = self.query_one("#connections_table", DataTable)
-        table.focus()
-
-    async def action_toggle_filter(self) -> None:
-        """Toggle the filter input visibility."""
-        filter_container = self.query_one("#filter_container")
-        filter_input = self.query_one("#filter_input", Input)
-
-        if filter_container.display:
-            filter_container.display = False
-            self.show_filter = False
-            # Return focus to the DataTable when filter is closed
-            table = self.query_one("#connections_table", DataTable)
-            table.focus()
+    def action_toggle_filter(self) -> None:
+        if self.query_one(Input).display:
+            self.action_close_filter()
         else:
-            filter_container.display = True
-            self.show_filter = True
-            filter_input.focus()
-
-    async def action_search(self) -> None:
-        """Focus the search input for quick access."""
-        if not self.show_filter:
-            await self.action_toggle_filter()
-        else:
-            filter_input = self.query_one("#filter_input", Input)
-            filter_input.focus()
-
-    def action_sort_by_status(self) -> None:
-        """Sort connections by status."""
-        self.sort_mode = "status" if self.sort_mode != "status" else "default"
-        # Re-sort existing data and update display (no need to fetch fresh data)
-        if self.filtered_connections:
-            if self.sort_mode == "status":
-                self.filtered_connections.sort(key=lambda x: x["status"])
-            else:
-                # Default sort - could add timestamp-based sorting here
-                pass
-            self._update_table_display()
-        else:
-            self.refresh_connections()
-
-    def action_sort_by_process(self) -> None:
-        """Sort connections by process name."""
-        self.sort_mode = "process" if self.sort_mode != "process" else "default"
-        # Re-sort existing data and update display (no need to fetch fresh data)
-        if self.filtered_connections:
-            if self.sort_mode == "process":
-                self.filtered_connections.sort(key=lambda x: x["friendly"].lower())
-            else:
-                # Default sort - could add timestamp-based sorting here
-                pass
-            self._update_table_display()
-        else:
-            self.refresh_connections()
-
-    def action_toggle_interface(self) -> None:
-        """Cycle through available network interfaces."""
-        current_index = 0
-        try:
-            current_index = self.available_interfaces.index(self.selected_interface)
-        except ValueError:
-            pass
-
-        next_index = (current_index + 1) % len(self.available_interfaces)
-        self.selected_interface = self.available_interfaces[next_index]
-
-        # Reset bandwidth stats when changing interface
-        self.last_network_stats = None
-        self.last_stats_time = None
-        self.refresh_connections()
-
-        # Update metrics display immediately
-        self._update_metrics_display(
-            self.total_connections, self.active_connections, self.listening_connections
-        )
-
-    def action_toggle_emojis(self) -> None:
-        """Toggle emoji display on/off."""
-        self.show_emojis = not self.show_emojis
-
-        # Update table columns and refresh display
-        self._update_table_columns()
-        self._update_filter_placeholder()
-
-        # Force a complete refresh to update all UI elements
-        self.refresh_connections()
-
-        # Update metrics display immediately
-        self._update_metrics_display(
-            self.total_connections, self.active_connections, self.listening_connections
-        )
-
-    def _update_table_columns(self) -> None:
-        """Update table column headers based on emoji setting."""
-        table = self.query_one("#connections_table", DataTable)
-
-        # Clear existing columns if any
-        table.clear(columns=True)
-
-        if self.show_emojis:
-            table.add_columns(
-                "🆔 PID",
-                "🔖 Service",
-                "⚙️  Process",
-                "🏠 Local Address",
-                "🌐 Remote Address",
-                "📊 Status",
-                "⚡ Speed",
-            )
-        else:
-            table.add_columns(
-                "PID",
-                "Service",
-                "Process",
-                "Local Address",
-                "Remote Address",
-                "Status",
-                "Speed",
-            )
-
-    def _get_filter_placeholder(self) -> str:
-        """Get filter input placeholder text based on emoji setting."""
-        if self.show_emojis:
-            return "🔍 Filter connections (regex supported)..."
-        else:
-            return "Filter connections (regex supported)..."
-
-    def _update_filter_placeholder(self) -> None:
-        """Update filter input placeholder."""
-        try:
-            filter_input = self.query_one("#filter_input", Input)
-            filter_input.placeholder = self._get_filter_placeholder()
-        except Exception:
-            pass
+            self.action_search()
 
     def on_input_changed(self, event: Input.Changed) -> None:
-        """Handle filter input changes."""
-        if event.input.id == "filter_input":
-            self.current_filter = event.value
-            # Cancel existing debounce timer if it exists
-            if self.debounce_timer is not None:
-                self.debounce_timer.stop()
-            # Create new debounce timer
-            self.debounce_timer = self.set_timer(0.5, self.refresh_connections)
+        self.query_text = event.value
+        if self.debounce:
+            self.debounce.stop()
+        self.debounce = self.set_timer(0.15, self.render_connections)
+
+    def on_input_submitted(self) -> None:
+        self.query_one(ConnectionTable).focus()
+
+    def action_sort_status(self) -> None:
+        self.sort_mode = "default" if self.sort_mode == "status" else "status"
+        self.render_connections()
+
+    def action_sort_process(self) -> None:
+        self.sort_mode = "default" if self.sort_mode == "process" else "process"
+        self.render_connections()
+
+    def action_interface(self) -> None:
+        index = (
+            self.interfaces.index(self.selected_interface)
+            if self.selected_interface in self.interfaces
+            else 0
+        )
+        self.selected_interface = self.interfaces[(index + 1) % len(self.interfaces)]
+        self.sample_bandwidth()
+
+    def action_emojis(self) -> None:
+        self.show_emojis = not self.show_emojis
+        self.render_connections()
+
+    def action_ipv6(self) -> None:
+        self.expand_ipv6 = not self.expand_ipv6
+        self.render_connections()
+
+    def on_data_table_row_highlighted(self) -> None:
+        self.refresh_bindings()
+
+    def on_data_table_row_selected(self) -> None:
+        selected = self.query_one(ConnectionTable).selected
+        if selected:
+            self.app.push_screen(ConnectionDetailScreen(selected))
+
+    def action_terminate(self) -> None:
+        selected = self.query_one(ConnectionTable).selected
+        if selected and control_unavailable(selected.identity) is None:
+            self.app.push_screen(TerminateScreen(selected))
 
 
-if __name__ == "__main__":
-    NetshowApp().run()
+class NetshowApp(App[None]):
+    CSS_PATH = "netshow.tcss"
+    TITLE = "Netshow"
+    BINDINGS = [("q", "quit", "Quit"), ("?", "help", "Help")]
+
+    def __init__(
+        self,
+        interval: float = 3,
+        no_colors: bool = False,
+        collector: Callable[[], CollectionResult] = collect_connections,
+    ) -> None:
+        self.no_colors = no_colors
+        self.monochrome = Monochrome()
+        super().__init__()
+        self.register_theme(SELENIZED_DARK)
+        self.theme = SELENIZED_DARK.name
+        self.connections = ConnectionsScreen(interval, collector)
+
+    def on_mount(self) -> None:
+        self.push_screen(self.connections)
+
+    def get_line_filters(self) -> Sequence[LineFilter]:
+        filters = list(super().get_line_filters())
+        return [*filters, self.monochrome] if self.no_colors else filters
+
+    def action_help(self) -> None:
+        if self.screen.query("HelpPanel"):
+            self.action_hide_help_panel()
+        else:
+            self.action_show_help_panel()
+
+    def get_system_commands(self, screen: Screen[object]) -> Iterable[SystemCommand]:
+        yield from super().get_system_commands(screen)
+        if isinstance(screen, ConnectionsScreen):
+            for title, description, action in (
+                ("Refresh connections", "Collect a fresh TCP snapshot", screen.action_refresh),
+                (
+                    "Filter connections",
+                    "Search PID, service, address, or status",
+                    screen.action_search,
+                ),
+                ("Sort by process", "Toggle process ordering", screen.action_sort_process),
+                ("Sort by status", "Toggle TCP status ordering", screen.action_sort_status),
+                ("Network interface", "Cycle the bandwidth interface", screen.action_interface),
+                ("Toggle symbols", "Show or hide status symbols", screen.action_emojis),
+                ("Expand IPv6", "Toggle full IPv6 addresses", screen.action_ipv6),
+            ):
+                yield SystemCommand(title, description, action)
+        if isinstance(screen, (ConnectionsScreen, ConnectionDetailScreen)) and screen.check_action(
+            "terminate", ()
+        ):
+            yield SystemCommand(
+                "Terminate process",
+                "Confirm termination of the selected process",
+                screen.action_terminate,
+            )

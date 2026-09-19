@@ -1,0 +1,235 @@
+Screen {
+    background: $background;
+    color: $foreground;
+}
+
+Header {
+    background: $surface;
+    color: $text;
+    text-style: bold;
+}
+
+Footer {
+    background: $surface;
+}
+
+#metrics {
+    height: auto;
+    background: $background;
+    padding: 0 1;
+    align-horizontal: right;
+}
+
+#counts {
+    height: auto;
+    min-height: 3;
+    grid-size: 4;
+    grid-columns: 2fr 1.3fr 1.6fr 3.5fr;
+    grid-rows: auto;
+    grid-gutter: 0 1;
+}
+
+#counts .metric {
+    width: 1fr;
+    height: auto;
+    min-height: 3;
+    background: $panel;
+    color: $text;
+    border: solid $primary;
+    border-title-color: $text;
+    border-title-style: bold;
+    border-title-align: center;
+    padding: 0;
+    text-style: bold;
+    content-align: center middle;
+}
+
+#counts #active { border: solid $success; }
+#counts #listening { border: solid $secondary; }
+#counts #bandwidth { border: solid $warning; }
+
+#bandwidth_spark {
+    width: 36;
+    max-width: 100%;
+    height: 1;
+    padding: 0 1;
+}
+
+#bandwidth_spark > .sparkline--max-color { color: $warning; }
+#bandwidth_spark > .sparkline--min-color { color: $primary; }
+
+.compact #counts {
+    min-height: 6;
+    grid-size: 3;
+    grid-columns: 1.2fr 1fr 1.2fr;
+    grid-rows: auto auto;
+}
+
+.compact #bandwidth { column-span: 3; }
+
+#filter {
+    margin: 0 1;
+    height: 3;
+    background: $surface;
+    color: $text;
+    border: solid $accent;
+}
+
+#filter:focus { border: solid $primary; }
+
+#collection_status {
+    height: auto;
+    padding: 0 1;
+    color: $text-muted;
+    background: $surface;
+}
+
+#empty_state {
+    height: auto;
+    padding: 1 2;
+    color: $text-muted;
+}
+
+ConnectionTable {
+    height: 1fr;
+    background: $background;
+    color: $foreground;
+    background-tint: transparent;
+    scrollbar-size: 1 1;
+}
+
+ConnectionTable > .datatable--header {
+    background: $surface;
+    color: $text;
+    text-style: bold;
+    background-tint: transparent;
+}
+
+ConnectionTable > .datatable--even-row { background: $background; }
+ConnectionTable > .datatable--odd-row { background: $surface 45%; }
+
+#detail_scroll {
+    height: 1fr;
+    padding: 1 2;
+    align: center middle;
+}
+
+#detail_content {
+    height: auto;
+    width: 100%;
+    max-width: 140;
+}
+
+#detail_title {
+    height: auto;
+    padding: 1 2;
+    margin-bottom: 1;
+    background: $primary-muted;
+    text-style: bold;
+    color: $text;
+    text-align: center;
+}
+
+#detail_panels {
+    height: auto;
+}
+
+.detail_panel {
+    height: auto;
+    padding: 1 2;
+    background: $panel;
+    color: auto 100%;
+    border: round $primary;
+}
+
+#connection_panel { width: 2fr; margin-right: 2; }
+#process_panel { width: 3fr; border: round $secondary; }
+
+.compact #detail_panels { layout: vertical; }
+.compact #connection_panel, .compact #process_panel {
+    width: 1fr;
+    margin: 0 0 1 0;
+    padding: 0 1;
+}
+
+.compact #detail_scroll { padding: 0 1; align-vertical: top; }
+
+.section_title {
+    height: auto;
+    padding: 0 1;
+    background: $primary-muted;
+    text-style: bold;
+    color: $text;
+    margin-bottom: 1;
+}
+
+#process_panel .section_title { background: $secondary-muted; }
+.compact #detail_title { padding: 0 1; }
+
+.detail_field {
+    height: auto;
+    margin: 0;
+}
+
+DetailFields, #process_status { height: auto; }
+
+.detail_label {
+    width: 18;
+    height: auto;
+    color: auto 80%;
+}
+
+#connection_info .detail_label { width: 9; }
+
+.detail_value {
+    width: 1fr;
+    height: auto;
+    color: auto 100%;
+}
+
+#detail_buttons {
+    height: 5;
+    padding: 1 0;
+    align: center middle;
+    background: $surface;
+}
+
+#detail_buttons Button {
+    width: 24;
+    margin: 0 1;
+}
+
+.compact #detail_buttons {
+    height: 3;
+    padding: 0;
+}
+
+Button { margin-right: 1; }
+
+TerminateScreen {
+    align: center middle;
+    background: $background 65%;
+}
+
+#terminate_dialog {
+    width: 68;
+    max-width: 96%;
+    height: auto;
+    max-height: 95%;
+    padding: 1 2;
+    background: $surface;
+    border: thick $error;
+}
+
+#terminate_dialog VerticalScroll {
+    height: auto;
+    max-height: 12;
+}
+
+#terminate_identity, #terminate_status, .dialog_explanation {
+    height: auto;
+    margin-bottom: 1;
+}
+
+.dialog_explanation { color: $text-muted; }
+.dialog_buttons { height: 3; align-horizontal: right; }
