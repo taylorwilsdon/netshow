@@ -18,7 +18,7 @@ from .collectors import collect_connections
 from .connection_table import ConnectionTable
 from .detail_screen import ConnectionDetailScreen
 from .models import BandwidthSample, CollectionResult, Connection
-from .presentation import format_bytes, literal, select_connections
+from .presentation import STATUS_ICONS, format_bytes, literal, select_connections
 from .processes import control_unavailable
 from .terminate_screen import TerminateScreen
 from .theme import SELENIZED_DARK
@@ -165,10 +165,13 @@ class ConnectionsScreen(Screen[None]):
     def render_metrics(self) -> None:
         total = len(self.snapshot)
         count = f"{len(self.filtered_connections)} / {total}" if self.query_text else str(total)
+        established = sum(c.status == "ESTABLISHED" for c in self.snapshot)
+        listening = sum(c.status == "LISTEN" for c in self.snapshot)
+        # Active and Listening carry the same glyph as their rows in the table.
         for widget_id, symbol, label, value in (
-            ("total", "📊", "Connections", count),
-            ("active", "⚡", "Active", sum(c.status == "ESTABLISHED" for c in self.snapshot)),
-            ("listening", "👂", "Listening", sum(c.status == "LISTEN" for c in self.snapshot)),
+            ("total", "≡", "Connections", count),
+            ("active", STATUS_ICONS["ESTABLISHED"], "Active", established),
+            ("listening", STATUS_ICONS["LISTEN"], "Listening", listening),
         ):
             prefix = f"{symbol} " if self.show_emojis else ""
             self.query_one(f"#{widget_id}", Static).update(f"{prefix}{label}: {value}")
@@ -179,7 +182,7 @@ class ConnectionsScreen(Screen[None]):
             else "Bandwidth unavailable"
         )
         bandwidth = self.query_one("#bandwidth", Static)
-        prefix = "🔥 " if self.show_emojis else ""
+        prefix = "⇅ " if self.show_emojis else ""
         bandwidth.border_title = literal(f"{prefix}Bandwidth · {sample.interface}")
         bandwidth.update(literal(text))
 
