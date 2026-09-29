@@ -8,9 +8,6 @@ Python 3.11+ · macOS & Linux · Built with Textual
 
 ![Netshow connection monitor showing example connections](docs/assets/connections.svg)
 
-> This checkout contains the UI refresh in development. Screenshots use example data.
-> `uvx netshow` runs the published release; use the source instructions below to try this version.
-
 ## Install and run
 
 ```sh
